@@ -2,7 +2,7 @@ plugins {
     id "java-library"
 }
 
-group = rootProject.findProperty("maven_group") ?: "dev.b2tclient"
+group = rootProject.findProperty("maven_group") ?: "dev.sealedclient"
 version = rootProject.findProperty("mod_version") ?: "1.0.0"
 
 repositories {

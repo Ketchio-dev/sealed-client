@@ -1,19 +1,19 @@
 {
   "schemaVersion": 1,
-  "id": "b2tclient-26-e2e",
+  "id": "sealedclient-26-e2e",
   "version": "${version}",
-  "name": "B2T Client 26.2 E2E Tests",
-  "description": "Isolated client game tests for the B2T Client 26.2 adapter.",
+  "name": "Sealed Client 26.2 E2E Tests",
+  "description": "Isolated client game tests for the Sealed Client 26.2 adapter.",
   "environment": "client",
   "entrypoints": {
     "fabric-client-gametest": [
-      "dev.b2tclient.v26.e2e.ClientRuntime26E2ETest",
-      "dev.b2tclient.v26.e2e.DedicatedServerE2ETest26",
-      "dev.b2tclient.v26.e2e.HighLatencyE2ETest26"
+      "dev.sealedclient.v26.e2e.ClientRuntime26E2ETest",
+      "dev.sealedclient.v26.e2e.DedicatedServerE2ETest26",
+      "dev.sealedclient.v26.e2e.HighLatencyE2ETest26"
     ]
   },
   "depends": {
-    "b2tclient": "${version}",
+    "sealedclient": "${version}",
     "fabric-client-gametest-api-v1": "*",
     "minecraft": "26.2"
   }

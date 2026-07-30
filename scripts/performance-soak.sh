@@ -6,17 +6,17 @@ usage() {
         "Usage: scripts/performance-soak.sh [--iterations N] [--test PATTERN]..." \
         "" \
         "Environment:" \
-        "  B2T_SOAK_ITERATIONS  Positive iteration count (default: 3)." \
-        "  B2T_SOAK_TESTS       Comma-separated Gradle test patterns." \
+        "  SEALED_SOAK_ITERATIONS  Positive iteration count (default: 3)." \
+        "  SEALED_SOAK_TESTS       Comma-separated Gradle test patterns." \
         "" \
         "When no test patterns are supplied, all *Performance* tests are run."
 }
 
-iterations="${B2T_SOAK_ITERATIONS:-3}"
+iterations="${SEALED_SOAK_ITERATIONS:-3}"
 declare -a test_patterns=()
 
-if [[ -n "${B2T_SOAK_TESTS:-}" ]]; then
-    IFS=',' read -r -a test_patterns <<< "${B2T_SOAK_TESTS}"
+if [[ -n "${SEALED_SOAK_TESTS:-}" ]]; then
+    IFS=',' read -r -a test_patterns <<< "${SEALED_SOAK_TESTS}"
 fi
 
 while (($# > 0)); do
@@ -55,7 +55,7 @@ if [[ ! "$iterations" =~ ^[1-9][0-9]*$ ]]; then
 fi
 
 if ((${#test_patterns[@]} == 0)); then
-    test_patterns=("dev.b2tclient.performance.*Performance*")
+    test_patterns=("dev.sealedclient.performance.*Performance*")
 fi
 
 for pattern in "${test_patterns[@]}"; do

@@ -1,4 +1,4 @@
-# B2T Client 2.2
+# Sealed Client 3.0
 
 [CI workflow](.github/workflows/ci.yml)
 
@@ -25,9 +25,9 @@ Nami를 비롯한 다른 클라이언트의 소스, 바이너리, 리소스는 �
 ViaFabricPlus와 Sodium은 설치 여부만 감지합니다. 1.21.4의 Baritone 연동은
 별도로 설치한 공식 Baritone 1.13.1 API를 통해 좌표·웨이포인트 길찾기,
 일시정지·재개·중지, 도착·정체·재시도 상태 확인을 제공합니다. Baritone은
-B2T JAR에 번들하거나 자동 다운로드하지 않습니다. 26.2 연동도 별도로 설치한
+Sealed Client JAR에 번들하거나 자동 다운로드하지 않습니다. 26.2 연동도 별도로 설치한
 호환 Fabric provider와 필요한 Baritone API 표면이 있을 때만 활성화됩니다.
-B2T 프로젝트는 공식 Baritone의 Minecraft 26.2 stable 배포가 존재하거나
+Sealed Client 프로젝트는 공식 Baritone의 Minecraft 26.2 stable 배포가 존재하거나
 계속 제공된다고 보장하지 않습니다. 26.2 사용자는 provider의 실제 호환성과
 배포 출처를 별도로 확인해야 합니다.
 
@@ -38,7 +38,7 @@ B2T 프로젝트는 공식 Baritone의 Minecraft 26.2 stable 배포가 존재하
 오염되거나, 함께 설치한 애드온이 위험한 코드를 실행할 가능성은 별도로
 확인해야 합니다.
 
-B2T Client는 이 위험을 줄이기 위해 다음 경계를 둡니다.
+Sealed Client는 이 위험을 줄이기 위해 다음 경계를 둡니다.
 
 - 별도 HTTP 연결, 소켓, 웹훅, 텔레메트리, 원격 업데이트 없음
 - Minecraft 런처 계정, 프로필, 인증 토큰 접근 없음
@@ -48,7 +48,7 @@ B2T Client는 이 위험을 줄이기 위해 다음 경계를 둡니다.
 - 소스 JAR, SHA-256 목록, 로컬 생성 SBOM을 포함하는 감사 가능 배포 묶음
 
 여기서 “로컬 전용”은 사용자가 선택한 Minecraft 서버와 게임 자체가 통신하지
-않는다는 뜻이 아닙니다. B2T Client가 Minecraft 연결과 별개인 은닉 통신 채널을
+않는다는 뜻이 아닙니다. Sealed Client가 Minecraft 연결과 별개인 은닉 통신 채널을
 만들지 않는다는 뜻입니다. 정책 테스트, 체크섬, SBOM도 악성 코드가 절대로
 없다는 보증은 아닙니다. 신뢰한 소스를 직접 검토하고 빌드하는 것이 가장 강한
 검증 방법입니다. 자세한 설명은 [SECURITY.md](SECURITY.md)에 있습니다.
@@ -56,9 +56,9 @@ B2T Client는 이 위험을 줄이기 위해 다음 경계를 둡니다.
 ## 설치와 기본 조작
 
 1. 사용할 Minecraft 버전에 맞는 Fabric Loader와 Fabric API를 설치합니다.
-2. 같은 버전의 B2T JAR 하나만 `mods` 폴더에 넣습니다.
-   - 1.21.4: `b2t-client-mc1.21.4-2.2.0.jar`
-   - 26.2: `b2t-client-mc26.2-2.2.0.jar`
+2. 같은 버전의 Sealed Client JAR 하나만 `mods` 폴더에 넣습니다.
+   - 1.21.4: `sealed-client-mc1.21.4-3.0.0.jar`
+   - 26.2: `sealed-client-mc26.2-3.0.0.jar`
 3. 게임에서 `P`를 눌러 ClickGUI를 엽니다.
 
 1.21.4 주요 조작:
@@ -73,33 +73,33 @@ B2T Client는 이 위험을 줄이기 위해 다음 경계를 둡니다.
 - Key bind 행을 클릭한 뒤 키 입력: 모듈 단축키 지정
 - 바인딩 입력 중 `Esc`: 단축키 제거
 
-로컬 명령어는 `;b2t`로 시작하며 서버 채팅으로 전송되지 않습니다.
+로컬 명령어는 `;sealed`로 시작하며 서버 채팅으로 전송되지 않습니다.
 1.21.4 명령은 다음과 같습니다.
 
 ```text
-;b2t help
-;b2t modules [category]
-;b2t toggle <module>
-;b2t bind <module> <key|none>
-;b2t set <module> <setting> <value>
-;b2t profile list|create|use|delete|bind
-;b2t friend list|add|remove
-;b2t waypoint list|add|remove
-;b2t baritone status|stop
-;b2t baritone goto <x> [y] <z>
-;b2t baritone goto waypoint <name>
-;b2t config save|reload
-;b2t panic
+;sealed help
+;sealed modules [category]
+;sealed toggle <module>
+;sealed bind <module> <key|none>
+;sealed set <module> <setting> <value>
+;sealed profile list|create|use|delete|bind
+;sealed friend list|add|remove
+;sealed waypoint list|add|remove
+;sealed baritone status|stop
+;sealed baritone goto <x> [y] <z>
+;sealed baritone goto waypoint <name>
+;sealed config save|reload
+;sealed panic
 ```
 
-`panic`은 전투·이동·자동화 모듈을 끄고 B2T Client가 점유한 입력과 슬롯
-동작 및 B2T가 시작한 Baritone 경로를 해제합니다.
+`panic`은 전투·이동·자동화 모듈을 끄고 Sealed Client가 점유한 입력과 슬롯
+동작 및 Sealed Client가 시작한 Baritone 경로를 해제합니다.
 
-Baritone을 사용하려면 공식 1.21.4 `baritone-api-fabric` JAR을 B2T와 별도로
+Baritone을 사용하려면 공식 1.21.4 `baritone-api-fabric` JAR을 Sealed Client와 별도로
 `mods` 폴더에 설치해야 합니다. API 클래스를 제거한 `standalone-fabric`
-변형은 B2T 연동용이 아닙니다. GUI의 `Baritone Navigator`는
+변형은 Sealed Client 연동용이 아닙니다. GUI의 `Baritone Navigator`는
 `AUTOMATION` 위험도로 기본 비활성화되며, 좌표를 설정한 뒤
-`Confirm Target`을 켜야 한 번 시작됩니다. B2T를 Baritone 없이 설치해도
+`Confirm Target`을 켜야 한 번 시작됩니다. Sealed Client를 Baritone 없이 설치해도
 정상 부팅하며 관련 명령과 모듈은 안전하게 실패합니다. 26.2에서는 별도
 provider가 Fabric 모드로 로드되고 필요한 API가 호환될 때만 연동합니다.
 
@@ -116,25 +116,25 @@ ClickGUI 왼쪽의 `Presets`에서 다음 내장 프리셋을 미리 보고 적�
 26.2는 `P` GUI와 다음 명령을 제공합니다.
 
 ```text
-;b2t help
-;b2t list [category]
-;b2t status <module-id>
-;b2t toggle <module-id>
-;b2t friend add|remove|list [name]
-;b2t waypoint add|remove|list [name]
-;b2t profile list
-;b2t profile save <name> [server-pattern]
-;b2t profile use <name>
-;b2t profile delete <name>
-;b2t profile gui
-;b2t hud edit|reset
-;b2t baritone status|stop
-;b2t baritone goto <x> <y> <z>
-;b2t panic
+;sealed help
+;sealed list [category]
+;sealed status <module-id>
+;sealed toggle <module-id>
+;sealed friend add|remove|list [name]
+;sealed waypoint add|remove|list [name]
+;sealed profile list
+;sealed profile save <name> [server-pattern]
+;sealed profile use <name>
+;sealed profile delete <name>
+;sealed profile gui
+;sealed hud edit|reset
+;sealed baritone status|stop
+;sealed baritone goto <x> <y> <z>
+;sealed panic
 ```
 
-두 플랫폼의 `panic`은 활성 비수동 모듈을 모두 끄고 B2T가 점유한 키·슬롯,
-전투·이동, Freecam·XRay 및 B2T가 시작한 Baritone 경로를 해제합니다.
+두 플랫폼의 `panic`은 활성 비수동 모듈을 모두 끄고 Sealed Client가 점유한 키·슬롯,
+전투·이동, Freecam·XRay 및 Sealed Client가 시작한 Baritone 경로를 해제합니다.
 
 해당 어댑터의 GUI는 카테고리·검색·즐겨찾기·위험도 표시와
 Boolean/Integer/Double/String 설정 편집을 지원합니다. 90개 카탈로그 항목은
@@ -201,7 +201,7 @@ Target HUD는 크로스헤어가 아니라 KillAura/TriggerBot/AutoCrystal이 �
 
 ## 설정과 복구
 
-설정은 Minecraft 폴더의 `config/b2tclient/config.json`에 저장됩니다. v2
+설정은 Minecraft 폴더의 `config/sealedclient/config.json`에 저장됩니다. v2
 포맷은 모듈 설정, 즐겨찾기, 프로필, 서버별 프로필 연결, 친구와 차원별
 웨이포인트를 저장합니다. 기존 v1 설정은 기본 프로필로 자동 이관됩니다.
 
@@ -209,9 +209,9 @@ Target HUD는 크로스헤어가 아니라 KillAura/TriggerBot/AutoCrystal이 �
 원본은 `config.corrupt-날짜.json`으로 보존하고 백업 또는 안전한 기본값으로
 복구합니다. 파일 시스템이 지원하면 임시 파일과 원자적 교체를 사용합니다.
 
-26.2 설정은 `config/b2tclient-26.2.json`에 별도로 저장됩니다. 명시적 schema
+26.2 설정은 `config/sealedclient-26.2.json`에 별도로 저장됩니다. 명시적 schema
 v1, 1 MiB 크기 제한, 임시 파일+원자적 교체와 손상 파일 격리를 적용합니다.
-접속 해제와 종료 때 B2T가 누른 이동 키, 감마와 View Bob 상태도 복구합니다.
+접속 해제와 종료 때 Sealed Client가 누른 이동 키, 감마와 View Bob 상태도 복구합니다.
 
 ## 빌드와 테스트
 
@@ -289,7 +289,7 @@ Mixin을 수정했다면 반드시 26.2 Client GameTest를 실행해야 합니�
 스위트는 실패가 아니라 건너뜁니다.
 
 ```shell
-./gradlew --no-daemon -Pb2t.minecraftEula=true :platform-26.2:runClientGameTest
+./gradlew --no-daemon -Psealed.minecraftEula=true :platform-26.2:runClientGameTest
 ```
 
 이 스위트는 실제 TCP 소켓으로 로컬 전용 서버에 접속해 다음을 확인합니다.
@@ -314,12 +314,12 @@ scripts/verify-release.sh
 
 `build/multiversion-release/`에는 다음 파일이 생성됩니다.
 
-- `b2t-client-mc1.21.4-2.2.0.jar`
-- `b2t-client-mc1.21.4-2.2.0-sources.jar`
-- `b2t-client-mc26.2-2.2.0.jar`
-- `b2t-client-mc26.2-2.2.0-sources.jar`
-- `b2t-client-2.2.0.sbom.json`
-- `b2t-client-mc26.2-2.2.0-bom.json`
+- `sealed-client-mc1.21.4-3.0.0.jar`
+- `sealed-client-mc1.21.4-3.0.0-sources.jar`
+- `sealed-client-mc26.2-3.0.0.jar`
+- `sealed-client-mc26.2-3.0.0-sources.jar`
+- `sealed-client-3.0.0.sbom.json`
+- `sealed-client-26.2-3.0.0-bom.json`
 - 통합 `SHA256SUMS`와 플랫폼별 체크섬 목록
 - `SECURITY.md`, `NOTICE`
 
@@ -354,3 +354,10 @@ scripts/verify-release.sh --repeat-builds 2
 기능을 포함하지 않습니다. 서버 규칙과 허용 범위는 바뀔 수 있으며 사용자는
 접속하는 서버의 최신 규칙을 직접 확인해야 합니다. 위험도가 높은 기능은
 사설 테스트 월드/서버에서 먼저 검증하십시오.
+
+
+## 라이선스
+
+Sealed Client는 [Apache License 2.0](LICENSE)으로 배포됩니다. 배포 묶음에는
+`LICENSE`와 Apache NOTICE 규약에 따른 `NOTICE`가 포함됩니다. Minecraft, Fabric,
+Baritone 등 서드파티 구성 요소는 각각의 라이선스를 따릅니다.

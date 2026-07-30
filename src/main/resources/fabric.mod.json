@@ -1,21 +1,21 @@
 {
   "schemaVersion": 1,
-  "id": "b2tclient",
+  "id": "sealedclient",
   "version": "${version}",
-  "name": "B2T Client",
+  "name": "Sealed Client",
   "description": "An original, transparent, local-only utility client for Minecraft 1.21.4.",
   "authors": [
-    "B2T Client contributors"
+    "Sealed Client contributors"
   ],
   "license": "Apache-2.0",
   "environment": "client",
   "entrypoints": {
     "client": [
-      "dev.b2tclient.B2TClient"
+      "dev.sealedclient.SealedClient"
     ]
   },
   "mixins": [
-    "b2tclient.mixins.json"
+    "sealedclient.mixins.json"
   ],
   "depends": {
     "fabricloader": ">=0.16.10",

@@ -2,21 +2,21 @@ plugins {
     id "net.fabricmc.fabric-loom"
 }
 
-group = rootProject.findProperty("maven_group") ?: "dev.b2tclient"
+group = rootProject.findProperty("maven_group") ?: "dev.sealedclient"
 version = rootProject.findProperty("mod_version") ?: "1.0.0"
 
 base {
-    archivesName = "b2t-client-mc26.2"
+    archivesName = "sealed-client-mc26.2"
 }
 
 fabricApi {
     configureTests {
         createSourceSet = true
-        modId = "b2tclient-26-e2e"
+        modId = "sealedclient-26-e2e"
         enableGameTests = false
         enableClientGameTests = true
         clearRunDirectory = true
-        username = "B2T_E2E_26"
+        username = "SEALED_E2E_26"
     }
 }
 
@@ -62,9 +62,9 @@ tasks.named("test", Test) {
 
 // The dedicated-server E2E needs a running Minecraft server, which requires
 // agreeing to Mojang's EULA. That agreement is the build operator's to give, so
-// it is never recorded automatically: without -Pb2t.minecraftEula=true the
+// it is never recorded automatically: without -Psealed.minecraftEula=true the
 // suite logs a skip and the rest of the game tests still run.
-def minecraftEulaAccepted = providers.gradleProperty("b2t.minecraftEula")
+def minecraftEulaAccepted = providers.gradleProperty("sealed.minecraftEula")
         .map { it.toBoolean() }.getOrElse(false)
 
 tasks.named("runClientGameTest") {
@@ -79,16 +79,16 @@ tasks.named("runClientGameTest") {
         def eula = new File(runDirectory, "eula.txt")
         if (minecraftEulaAccepted) {
             eula.setText(
-                    "# Written because the build was run with -Pb2t.minecraftEula=true.\n"
+                    "# Written because the build was run with -Psealed.minecraftEula=true.\n"
                             + "eula=true\n",
                     "UTF-8"
             )
-            logger.lifecycle("Minecraft EULA accepted via -Pb2t.minecraftEula: "
+            logger.lifecycle("Minecraft EULA accepted via -Psealed.minecraftEula: "
                     + "the 26.2 dedicated-server E2E will run.")
         } else {
             eula.delete()
             logger.lifecycle("Minecraft EULA not accepted: the 26.2 dedicated-server E2E "
-                    + "will skip. Re-run with -Pb2t.minecraftEula=true to include it.")
+                    + "will skip. Re-run with -Psealed.minecraftEula=true to include it.")
         }
     }
 }
@@ -116,7 +116,7 @@ tasks.register("remapJar") {
     dependsOn tasks.named("jar")
 }
 
-def sbomOutput = layout.buildDirectory.file("reports/b2t-client-mc26.2-${project.version}-bom.json")
+def sbomOutput = layout.buildDirectory.file("reports/sealed-client-26.2-${project.version}-bom.json")
 def checksumOutput = layout.buildDirectory.file("checksums/SHA256SUMS")
 
 tasks.register("generateSbom26") {
@@ -163,7 +163,7 @@ tasks.register("generateSbom26") {
             ])
         }
 
-        String rootRef = "pkg:maven/${encode(project.group.toString())}/b2t-client-mc26.2@${encode(project.version.toString())}"
+        String rootRef = "pkg:maven/${encode(project.group.toString())}/sealed-client-mc26.2@${encode(project.version.toString())}"
         Map document = [
                 "bomFormat"  : "CycloneDX",
                 "specVersion": "1.6",
@@ -173,11 +173,11 @@ tasks.register("generateSbom26") {
                                 "type"   : "application",
                                 "bom-ref": rootRef,
                                 "group"  : project.group.toString(),
-                                "name"   : "b2t-client-mc26.2",
+                                "name"   : "sealed-client-mc26.2",
                                 "version": project.version.toString(),
                                 "purl"   : rootRef,
                                 "properties": [[
-                                        "name" : "b2t.minecraft.javaVersion",
+                                        "name" : "sealed.minecraft.javaVersion",
                                         "value": "25"
                                 ]]
                         ]
@@ -242,6 +242,8 @@ tasks.register("release26", Sync) {
     from tasks.named("sourcesJar").flatMap { it.archiveFile }
     from sbomOutput
     from checksumOutput
+    from rootProject.file("LICENSE")
+    from rootProject.file("NOTICE")
 }
 
 tasks.register("verifyRelease26") {

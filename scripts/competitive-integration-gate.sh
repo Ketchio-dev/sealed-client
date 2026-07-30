@@ -6,13 +6,13 @@ usage() {
         "Usage: scripts/competitive-integration-gate.sh [--iterations N]" \
         "" \
         "Environment:" \
-        "  B2T_COMPETITIVE_GATE_ITERATIONS  Positive iteration count (default: 1)." \
+        "  SEALED_COMPETITIVE_GATE_ITERATIONS  Positive iteration count (default: 1)." \
         "" \
         "Runs root, common, and Minecraft 26.2 integration/unit matrices without" \
         "a persistent Gradle daemon. Every iteration reruns the selected tasks."
 }
 
-iterations="${B2T_COMPETITIVE_GATE_ITERATIONS:-1}"
+iterations="${SEALED_COMPETITIVE_GATE_ITERATIONS:-1}"
 
 while (($# > 0)); do
     case "$1" in

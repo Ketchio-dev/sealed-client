@@ -1,4 +1,4 @@
-B2T Client 2.2
+Sealed Client 3.0
 Copyright 2026 Ketchio-dev
 
 Licensed under the Apache License, Version 2.0. See LICENSE for the full terms.
@@ -21,6 +21,8 @@ local build; it is informational and is not a security certification.
 
 The optional Minecraft 1.21.4 navigation integration is compiled against the
 official Baritone API v1.13.1, licensed LGPL-3.0. Baritone is not copied into,
-embedded in, or redistributed with the B2T Client JAR. Users may install,
+embedded in, or redistributed with the Sealed Client JAR. Users may install,
 replace, or remove the matching baritone-api-fabric mod independently.
 Source and license: https://github.com/cabaletta/baritone
+
+Historical name: B2T Client (versions through 2.2.0).

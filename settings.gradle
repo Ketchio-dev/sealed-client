@@ -12,6 +12,6 @@ plugins {
     id "org.gradle.toolchains.foojay-resolver-convention" version "1.0.0"
 }
 
-rootProject.name = "b2t-client"
+rootProject.name = "sealed-client"
 
 include("common", "platform-26.2")

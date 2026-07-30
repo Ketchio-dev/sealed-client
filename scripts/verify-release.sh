@@ -6,15 +6,15 @@ usage() {
         "Usage: scripts/verify-release.sh [--repeat-builds N] [--skip-build]" \
         "" \
         "Environment:" \
-        "  B2T_RELEASE_REPEAT_BUILDS  Positive build count (default: 1)." \
-        "  B2T_RELEASE_SKIP_BUILD     Set to 1, true, or yes to verify existing output." \
+        "  SEALED_RELEASE_REPEAT_BUILDS  Positive build count (default: 1)." \
+        "  SEALED_RELEASE_SKIP_BUILD     Set to 1, true, or yes to verify existing output." \
         "" \
         "Validates the combined Minecraft 1.21.4 + 26.2 release bundle." \
         "Two or more builds additionally verify reproducible release checksums."
 }
 
-repeat_builds="${B2T_RELEASE_REPEAT_BUILDS:-1}"
-skip_build="${B2T_RELEASE_SKIP_BUILD:-false}"
+repeat_builds="${SEALED_RELEASE_REPEAT_BUILDS:-1}"
+skip_build="${SEALED_RELEASE_SKIP_BUILD:-false}"
 
 while (($# > 0)); do
     case "$1" in
@@ -55,7 +55,7 @@ case "$skip_build" in
         skip_build=false
         ;;
     *)
-        printf 'B2T_RELEASE_SKIP_BUILD must be true/false: %s\n' "$skip_build" >&2
+        printf 'SEALED_RELEASE_SKIP_BUILD must be true/false: %s\n' "$skip_build" >&2
         exit 2
         ;;
 esac

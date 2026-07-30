@@ -1,5 +1,31 @@
 # Changelog
 
+## 3.0.0
+
+### Sealed Client 리브랜드
+
+- 제품명, Java 패키지, mod id, Maven group과 배포 파일명을 Sealed Client로
+  통일했습니다.
+- 로컬 명령 프리픽스를 `;sealed`로, 설정 경로를 `config/sealedclient/`와
+  `sealedclient-26.2.json`으로, 휴대용 프로필 포맷을 `sealed-profile`로
+  변경했습니다.
+- 공개 배포 전 클린 브레이크로 적용했으며 이전 식별자용 마이그레이션 shim은
+  제공하지 않습니다.
+
+### 라이선스와 공개 배포
+
+- 프로젝트 라이선스를 표준 Apache License 2.0으로 전환하고 LICENSE와 NOTICE를
+  양 플랫폼 배포 묶음에 포함했습니다.
+- GitHub 공개 저장소와 실제 CI 검증을 위한 패키지·GameTest·스크립트·보안 정책
+  경로를 새 아이덴티티에 맞게 갱신했습니다.
+
+### 릴리스 검증
+
+- 양 플랫폼 JAR·소스 JAR·SBOM 이름을 3.0.0 규칙으로 통일하고 반복 빌드
+  SHA-256 재현성 게이트를 유지했습니다.
+- 새 명령 프리픽스의 panic/list 처리와 이전 프리픽스 미인식을 Client
+  GameTest로 검증합니다.
+
 ## 2.2.0
 
 ### 안정성 격리

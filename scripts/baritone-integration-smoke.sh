@@ -5,10 +5,10 @@ PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BARITONE_VERSION="${BARITONE_VERSION:-1.13.1}"
 ASSET_NAME="baritone-api-fabric-${BARITONE_VERSION}.jar"
 RELEASE_BASE="https://github.com/cabaletta/baritone/releases/download/v${BARITONE_VERSION}"
-SMOKE_DIRECTORY="$(mktemp -d /tmp/b2t-baritone-smoke.XXXXXX)"
+SMOKE_DIRECTORY="$(mktemp -d /tmp/sealed-baritone-smoke.XXXXXX)"
 
 cleanup() {
-    if [[ "${SMOKE_DIRECTORY}" == /tmp/b2t-baritone-smoke.* ]]; then
+    if [[ "${SMOKE_DIRECTORY}" == /tmp/sealed-baritone-smoke.* ]]; then
         rm -rf -- "${SMOKE_DIRECTORY}"
     fi
 }

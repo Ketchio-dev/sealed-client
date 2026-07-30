@@ -2,7 +2,7 @@
 
 ## Local-only boundary / 로컬 전용 경계
 
-B2T Client의 프로덕션 코드는 다음 동작을 하지 않는 것을 원칙으로 합니다.
+Sealed Client의 프로덕션 코드는 다음 동작을 하지 않는 것을 원칙으로 합니다.
 
 - 별도 HTTP 연결, 소켓 또는 웹훅 열기
 - 텔레메트리 수집 또는 플레이 정보 전송
@@ -11,13 +11,13 @@ B2T Client의 프로덕션 코드는 다음 동작을 하지 않는 것을 원�
 - 외부 프로세스 실행
 - 원격 자동 업데이트
 
-Minecraft는 사용자가 선택한 게임 서버와 정상적으로 통신하며, B2T Client는
+Minecraft는 사용자가 선택한 게임 서버와 정상적으로 통신하며, Sealed Client는
 해당 연결의 패킷 이벤트를 모듈에 제공합니다. “로컬 전용”은 게임 연결까지
-차단한다는 의미가 아니라, 그 연결과 별개인 외부 통신 채널을 B2T Client가
+차단한다는 의미가 아니라, 그 연결과 별개인 외부 통신 채널을 Sealed Client가
 만들지 않는다는 의미입니다.
 
-예상되는 직접 파일 접근은 Fabric이 제공하는 `config/b2tclient/`과
-`config/b2tclient-26.2.json` 설정 경로뿐입니다. 설정 저장은 임시 파일을
+예상되는 직접 파일 접근은 Fabric이 제공하는 `config/sealedclient/`과
+`config/sealedclient-26.2.json` 설정 경로뿐입니다. 설정 저장은 임시 파일을
 사용하고 파일 시스템이 지원하면 원자적으로 교체합니다. 1.21.4는 마지막으로
 읽을 수 있었던 설정을 백업해 복구하고, 26.2는 손상 파일을 격리한 뒤 안전한
 기본값을 사용합니다.
@@ -27,12 +27,12 @@ Minecraft는 사용자가 선택한 게임 서버와 정상적으로 통신하�
 등록된 모듈·설정 값만 적용합니다. 실행 코드나 JAR을 읽지 않으며 전투·이동·
 패킷·자동화 모듈 활성화는 별도 확인이 없으면 건너뜁니다.
 
-로컬 Fabric 모드는 `b2tclient:addon` 진입점을 통해 B2T API를 사용할 수
-있습니다. B2T Client는 애드온을 다운로드하거나 임의 디렉터리의 JAR을
-스캔하지 않지만, 사용자가 별도로 설치한 모드는 B2T Client와 같은 게임
+로컬 Fabric 모드는 `sealedclient:addon` 진입점을 통해 Sealed Client API를 사용할 수
+있습니다. Sealed Client는 애드온을 다운로드하거나 임의 디렉터리의 JAR을
+스캔하지 않지만, 사용자가 별도로 설치한 모드는 Sealed Client와 같은 게임
 프로세스 권한을 가집니다. 애드온의 안전은 별도로 검토해야 합니다.
 선택적인 Baritone 연동도 사용자가 설치한 공식 모드를 감지할 뿐 다운로드하거나
-번들하지 않습니다. 별도로 설치한 Baritone JAR은 같은 이유로 B2T의 보안 경계
+번들하지 않습니다. 별도로 설치한 Baritone JAR은 같은 이유로 Sealed Client의 보안 경계
 밖이며, 출처와 체크섬을 별도로 확인해야 합니다.
 
 ## Threats this design reduces / 줄이려는 위험
@@ -42,8 +42,8 @@ Minecraft는 사용자가 선택한 게임 서버와 정상적으로 통신하�
 - 네트워크·프로세스·토큰 관련 API의 우발적 도입을 소스 정책 테스트로 감지
 - 소스 JAR과 런타임 의존성 목록을 함께 제공하여 검토 가능성 향상
 - 전투·이동·자동화 기능의 기본 비활성화, 위험도 표시와 양 플랫폼의
-  `;b2t panic` (활성 비수동 모듈 비활성화 및 키·슬롯·전투·이동·Freecam·
-  XRay·B2T 소유 Baritone 상태 해제)
+  `;sealed panic` (활성 비수동 모듈 비활성화 및 키·슬롯·전투·이동·Freecam·
+  XRay·Sealed Client 소유 Baritone 상태 해제)
 
 ## What this does not prove / 보증하지 않는 것
 
@@ -85,7 +85,7 @@ GameTest에서 실제 클라이언트의 panic 및 해제 경로를 검증합니
 
 `baritone-integration-smoke.sh`는 사용자가 명시적으로 실행할 때에만 공식
 GitHub 릴리스에서 Baritone API Fabric JAR과 체크섬을 임시 디렉터리로
-다운로드합니다. 입력 JAR은 실행 전에 공식 체크섬과 대조하고 B2T 배포
+다운로드합니다. 입력 JAR은 실행 전에 공식 체크섬과 대조하고 Sealed Client 배포
 묶음에는 포함하지 않습니다.
 
 두 로컬 빌드의 릴리스 체크섬도 비교할 수 있습니다.
@@ -110,11 +110,11 @@ scripts/verify-release.sh --repeat-builds 2
 
 ## Reporting / 보고
 
-보안 문제를 발견하면 사용한 B2T Client 버전, Minecraft/Fabric 버전, 최소
+보안 문제를 발견하면 사용한 Sealed Client 버전, Minecraft/Fabric 버전, 최소
 재현 절차와 영향 범위를 프로젝트 유지관리자에게 전달하십시오. 실제 계정
 토큰, 서버 주소, 개인 경로와 민감한 로그는 삭제하십시오. 악용 가능한 상세
 내용이나 비밀값은 공개 게시물에 올리지 마십시오.
 
-현재 보안 검토 대상은 이 저장소에서 생성한 B2T Client 2.2.x의 Minecraft
+현재 보안 검토 대상은 이 저장소에서 생성한 Sealed Client 3.0.x의 Minecraft
 1.21.4와 26.2 JAR입니다. 제3자가 변환하거나 다시 패키징한 비공식 JAR은 지원
 대상이 아닙니다.

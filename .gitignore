@@ -7,4 +7,5 @@ out/
 *.iml
 *.log
 .DS_Store
+PLAN.md
 
