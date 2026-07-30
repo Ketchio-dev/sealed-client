@@ -1,0 +1,23 @@
+B2T Client 2.1
+
+This project is an original implementation for Minecraft Java Edition 1.21.4
+and 26.2.
+이 프로젝트는 Minecraft Java Edition 1.21.4와 26.2용 독자 구현입니다.
+
+No Nami source files, binaries, or assets are included.
+Nami의 소스 파일, 바이너리 또는 리소스를 포함하지 않습니다.
+
+Minecraft, Fabric, Baritone, ViaFabricPlus, Sodium, and other third-party
+names are the property of their respective owners. Their mention identifies
+compatibility or optional detection only and does not imply affiliation or
+endorsement.
+
+Third-party build and runtime components remain subject to their own licenses.
+The generated release SBOM records the runtime components resolved by the
+local build; it is informational and is not a security certification.
+
+The optional Minecraft 1.21.4 navigation integration is compiled against the
+official Baritone API v1.13.1, licensed LGPL-3.0. Baritone is not copied into,
+embedded in, or redistributed with the B2T Client JAR. Users may install,
+replace, or remove the matching baritone-api-fabric mod independently.
+Source and license: https://github.com/cabaletta/baritone

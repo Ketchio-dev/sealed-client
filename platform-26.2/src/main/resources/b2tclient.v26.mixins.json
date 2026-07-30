@@ -1,0 +1,28 @@
+{
+  "required": true,
+  "package": "dev.b2tclient.v26.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "client": [
+    "ConnectionMovementMixin26",
+    "SafeWalkPlayerMixin26",
+    "hud.ClientPacketListenerTotemMixin26",
+    "hud.ConnectionHudMetricsMixin26",
+    "hud.LocalPlayerHudMetricsMixin26",
+    "movement.LocalPlayerNoSlowMixin26",
+    "movement.ClientPacketListenerNoRotateMixin26",
+    "utility.FastUseStartUseGuardMixin26",
+    "utility.MinecraftRightClickDelayAccessor26",
+    "visual.AvatarRendererNametagMixin26",
+    "visual.MouseHandlerFreecamMixin26",
+    "visual.SectionCompilerXRayMixin26",
+    "visual.BlockFaceXRayMixin26",
+    "visual.RenderTypeAccessor26",
+    "visual.RenderTypeInvoker26",
+    "visual.RenderSetupAccessor26",
+    "visual.RenderSetupInvoker26",
+    "visual.EntityRenderDispatcherChamsMixin26"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

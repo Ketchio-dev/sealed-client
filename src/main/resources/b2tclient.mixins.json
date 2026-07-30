@@ -1,0 +1,19 @@
+{
+  "required": true,
+  "package": "dev.b2tclient.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "ConnectionMixin",
+    "camera.ClientPacketListenerNoRotateMixin",
+    "camera.LocalPlayerNoSlowMixin",
+    "camera.MouseHandlerFreecamMixin",
+    "render.BlockFaceMixin",
+    "render.BlockRenderDispatcherMixin",
+    "render.EntityRenderDispatcherMixin",
+    "render.ItemBlockRenderTypesMixin",
+    "render.SectionCompilerMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

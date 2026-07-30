@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "id": "b2tclient",
+  "version": "${version}",
+  "name": "B2T Client",
+  "description": "An original, transparent, local-only utility client for Minecraft 1.21.4.",
+  "authors": [
+    "B2T Client contributors"
+  ],
+  "license": "All-Rights-Reserved",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "dev.b2tclient.B2TClient"
+    ]
+  },
+  "mixins": [
+    "b2tclient.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.16.10",
+    "fabric-api": "*",
+    "minecraft": "1.21.4",
+    "java": ">=21"
+  },
+  "suggests": {
+    "baritone": "1.13.1"
+  }
+}

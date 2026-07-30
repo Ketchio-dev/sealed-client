@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "b2tclient-e2e",
+  "version": "${version}",
+  "name": "B2T Client E2E Tests",
+  "description": "Isolated client game tests for B2T Client.",
+  "environment": "client",
+  "entrypoints": {
+    "fabric-client-gametest": [
+      "dev.b2tclient.e2e.BootstrapAndGuiE2ETest",
+      "dev.b2tclient.e2e.ConfigRecoveryE2ETest",
+      "dev.b2tclient.e2e.CommandsAndServicesE2ETest",
+      "dev.b2tclient.e2e.WorldModulesE2ETest",
+      "dev.b2tclient.e2e.AdvancedWorldFeaturesE2ETest",
+      "dev.b2tclient.e2e.AutoDisconnectE2ETest"
+    ]
+  },
+  "depends": {
+    "b2tclient": "${version}",
+    "fabric-client-gametest-api-v1": "*",
+    "minecraft": "1.21.4"
+  }
+}

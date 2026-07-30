@@ -1,0 +1,282 @@
+plugins {
+    id "net.fabricmc.fabric-loom"
+}
+
+group = rootProject.findProperty("maven_group") ?: "dev.b2tclient"
+version = rootProject.findProperty("mod_version") ?: "1.0.0"
+
+base {
+    archivesName = "b2t-client-mc26.2"
+}
+
+fabricApi {
+    configureTests {
+        createSourceSet = true
+        modId = "b2tclient-26-e2e"
+        enableGameTests = false
+        enableClientGameTests = true
+        clearRunDirectory = true
+        username = "B2T_E2E_26"
+    }
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:26.2"
+    implementation "net.fabricmc:fabric-loader:0.19.3"
+    implementation "net.fabricmc.fabric-api:fabric-api:0.156.0+26.2"
+    implementation project(":common")
+
+    testImplementation "org.junit.jupiter:junit-jupiter:6.0.3"
+    testRuntimeOnly "org.junit.platform:junit-platform-launcher:6.0.3"
+}
+
+processResources {
+    inputs.property "version", project.version
+    filesMatching("fabric.mod.json") {
+        expand "version": project.version
+    }
+}
+
+tasks.named("processGametestResources", ProcessResources) {
+    inputs.property "version", project.version
+    filesMatching("fabric.mod.json") {
+        expand "version": project.version
+    }
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(25)
+    }
+    withSourcesJar()
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.release = 25
+    options.encoding = "UTF-8"
+}
+
+tasks.named("test", Test) {
+    useJUnitPlatform()
+}
+
+// The dedicated-server E2E needs a running Minecraft server, which requires
+// agreeing to Mojang's EULA. That agreement is the build operator's to give, so
+// it is never recorded automatically: without -Pb2t.minecraftEula=true the
+// suite logs a skip and the rest of the game tests still run.
+def minecraftEulaAccepted = providers.gradleProperty("b2t.minecraftEula")
+        .map { it.toBoolean() }.getOrElse(false)
+
+tasks.named("runClientGameTest") {
+    // The deterministic packet synchronizer steps the client and server in
+    // lockstep, which both hides real network timing and multiplies wall-clock
+    // time by the injected delay. The latency suite measures timing, so it must
+    // be off.
+    jvmArgs "-Dfabric.client.gametest.disableNetworkSynchronizer=true"
+    doFirst {
+        def runDirectory = file("build/run/clientGameTest")
+        runDirectory.mkdirs()
+        def eula = new File(runDirectory, "eula.txt")
+        if (minecraftEulaAccepted) {
+            eula.setText(
+                    "# Written because the build was run with -Pb2t.minecraftEula=true.\n"
+                            + "eula=true\n",
+                    "UTF-8"
+            )
+            logger.lifecycle("Minecraft EULA accepted via -Pb2t.minecraftEula: "
+                    + "the 26.2 dedicated-server E2E will run.")
+        } else {
+            eula.delete()
+            logger.lifecycle("Minecraft EULA not accepted: the 26.2 dedicated-server E2E "
+                    + "will skip. Re-run with -Pb2t.minecraftEula=true to include it.")
+        }
+    }
+}
+
+tasks.named("jar", Jar) {
+    from(project(":common").sourceSets.main.output)
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+tasks.named("sourcesJar", Jar) {
+    from(project(":common").sourceSets.main.allSource)
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+tasks.withType(AbstractArchiveTask).configureEach {
+    preserveFileTimestamps = false
+    reproducibleFileOrder = true
+}
+
+// Minecraft 26.2 is unobfuscated, so the standard JAR is already the final
+// distributable artifact. Keep this compatibility task for CI matrices.
+tasks.register("remapJar") {
+    group = "build"
+    description = "Builds the final 26.2 JAR (no remapping is required for 26.2)."
+    dependsOn tasks.named("jar")
+}
+
+def sbomOutput = layout.buildDirectory.file("reports/b2t-client-mc26.2-${project.version}-bom.json")
+def checksumOutput = layout.buildDirectory.file("checksums/SHA256SUMS")
+
+tasks.register("generateSbom26") {
+    group = "reporting"
+    description = "Generates a deterministic CycloneDX 1.6 SBOM from the resolved 26.2 runtime."
+    dependsOn tasks.named("jar")
+    inputs.files(configurations.runtimeClasspath)
+    outputs.file(sbomOutput)
+    doLast {
+        def sha256 = { File artifact ->
+            java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256")
+            artifact.withInputStream { stream ->
+                byte[] buffer = new byte[8192]
+                int read
+                while ((read = stream.read(buffer)) >= 0) {
+                    if (read > 0) {
+                        digest.update(buffer, 0, read)
+                    }
+                }
+            }
+            digest.digest().collect { String.format("%02x", it) }.join()
+        }
+        def encode = { String value ->
+            java.net.URLEncoder.encode(value, java.nio.charset.StandardCharsets.UTF_8)
+                    .replace("+", "%20")
+        }
+        def componentsByRef = new TreeMap<String, Map>()
+        configurations.runtimeClasspath.resolvedConfiguration.resolvedArtifacts.each { artifact ->
+            String componentGroup = artifact.moduleVersion.id.group ?: project.group.toString()
+            String componentName = artifact.moduleVersion.id.name
+            String componentVersion = artifact.moduleVersion.id.version
+            String purl = "pkg:maven/${encode(componentGroup)}/${encode(componentName)}@${encode(componentVersion)}"
+            componentsByRef.putIfAbsent(purl, [
+                    "type"   : "library",
+                    "bom-ref": purl,
+                    "group"  : componentGroup,
+                    "name"   : componentName,
+                    "version": componentVersion,
+                    "hashes" : [[
+                            "alg"    : "SHA-256",
+                            "content": sha256(artifact.file)
+                    ]],
+                    "purl"   : purl
+            ])
+        }
+
+        String rootRef = "pkg:maven/${encode(project.group.toString())}/b2t-client-mc26.2@${encode(project.version.toString())}"
+        Map document = [
+                "bomFormat"  : "CycloneDX",
+                "specVersion": "1.6",
+                "version"    : 1,
+                "metadata"   : [
+                        "component": [
+                                "type"   : "application",
+                                "bom-ref": rootRef,
+                                "group"  : project.group.toString(),
+                                "name"   : "b2t-client-mc26.2",
+                                "version": project.version.toString(),
+                                "purl"   : rootRef,
+                                "properties": [[
+                                        "name" : "b2t.minecraft.javaVersion",
+                                        "value": "25"
+                                ]]
+                        ]
+                ],
+                "components" : componentsByRef.values().toList(),
+                "dependencies": [[
+                        "ref"      : rootRef,
+                        "dependsOn": componentsByRef.keySet().toList()
+                ]]
+        ]
+        File output = sbomOutput.get().asFile
+        output.parentFile.mkdirs()
+        output.setText(
+                groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(document)) + "\n",
+                "UTF-8"
+        )
+    }
+}
+
+tasks.register("sha256Jar") {
+    group = "verification"
+    description = "Writes SHA-256 checksums for the 26.2 JAR, sources, and CycloneDX SBOM."
+    dependsOn tasks.named("jar"), tasks.named("sourcesJar"), tasks.named("generateSbom26")
+    inputs.files(
+            tasks.named("jar").flatMap { it.archiveFile },
+            tasks.named("sourcesJar").flatMap { it.archiveFile },
+            sbomOutput
+    )
+    outputs.file(checksumOutput)
+    doLast {
+        List<File> artifacts = [
+                tasks.named("jar").get().archiveFile.get().asFile,
+                tasks.named("sourcesJar").get().archiveFile.get().asFile,
+                sbomOutput.get().asFile
+        ].sort { it.name }
+        List<String> lines = artifacts.collect { artifact ->
+            java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256")
+            artifact.withInputStream { stream ->
+                byte[] buffer = new byte[8192]
+                int read
+                while ((read = stream.read(buffer)) >= 0) {
+                    if (read > 0) {
+                        digest.update(buffer, 0, read)
+                    }
+                }
+            }
+            String checksum = digest.digest().collect { String.format("%02x", it) }.join()
+            "${checksum}  ${artifact.name}"
+        }
+        File output = checksumOutput.get().asFile
+        output.parentFile.mkdirs()
+        output.setText(lines.join("\n") + "\n", "UTF-8")
+    }
+}
+
+tasks.register("release26", Sync) {
+    group = "build"
+    description = "Tests and bundles the 26.2 JAR, sources, CycloneDX SBOM, and SHA256SUMS."
+    dependsOn tasks.named("test"), tasks.named("sha256Jar")
+    into layout.buildDirectory.dir("release26")
+    from tasks.named("jar").flatMap { it.archiveFile }
+    from tasks.named("sourcesJar").flatMap { it.archiveFile }
+    from sbomOutput
+    from checksumOutput
+}
+
+tasks.register("verifyRelease26") {
+    group = "verification"
+    description = "Verifies every file listed in the 26.2 release SHA256SUMS manifest."
+    dependsOn tasks.named("release26")
+    doLast {
+        File directory = layout.buildDirectory.dir("release26").get().asFile
+        File manifest = new File(directory, "SHA256SUMS")
+        if (!manifest.isFile()) {
+            throw new GradleException("Missing SHA256SUMS")
+        }
+        manifest.readLines("UTF-8").findAll { !it.isBlank() }.each { line ->
+            String[] parts = line.split("  ", 2)
+            if (parts.length != 2) {
+                throw new GradleException("Malformed checksum line: ${line}")
+            }
+            File artifact = new File(directory, parts[1])
+            if (!artifact.isFile()) {
+                throw new GradleException("Missing release artifact: ${parts[1]}")
+            }
+            java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256")
+            artifact.withInputStream { stream ->
+                byte[] buffer = new byte[8192]
+                int read
+                while ((read = stream.read(buffer)) >= 0) {
+                    if (read > 0) {
+                        digest.update(buffer, 0, read)
+                    }
+                }
+            }
+            String actual = digest.digest().collect { String.format("%02x", it) }.join()
+            if (!actual.equals(parts[0])) {
+                throw new GradleException("Checksum mismatch: ${parts[1]}")
+            }
+        }
+    }
+}

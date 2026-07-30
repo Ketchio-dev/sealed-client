@@ -1,0 +1,31 @@
+plugins {
+    id "java-library"
+}
+
+group = rootProject.findProperty("maven_group") ?: "dev.b2tclient"
+version = rootProject.findProperty("mod_version") ?: "1.0.0"
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    testImplementation "org.junit.jupiter:junit-jupiter:6.0.3"
+    testRuntimeOnly "org.junit.platform:junit-platform-launcher:6.0.3"
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+    withSourcesJar()
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.release = 21
+    options.encoding = "UTF-8"
+}
+
+tasks.named("test", Test) {
+    useJUnitPlatform()
+}
