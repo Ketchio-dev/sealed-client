@@ -4,6 +4,7 @@
   "version": "${version}",
   "name": "B2T Client",
   "description": "A transparent, versioned Fabric client with a fail-closed Minecraft 26.2 adapter.",
+  "license": "Apache-2.0",
   "environment": "client",
   "entrypoints": {
     "client": [

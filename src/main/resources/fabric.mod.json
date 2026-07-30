@@ -7,7 +7,7 @@
   "authors": [
     "B2T Client contributors"
   ],
-  "license": "All-Rights-Reserved",
+  "license": "Apache-2.0",
   "environment": "client",
   "entrypoints": {
     "client": [
