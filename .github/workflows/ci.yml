@@ -27,11 +27,5 @@ jobs:
       - name: Validate Gradle wrapper
         uses: gradle/actions/wrapper-validation@v4
 
-      - name: Prepare platform-generated mappings
-        run: |
-          ./gradlew help --dependency-verification lenient
-          find ~/.gradle/caches/fabric-loom -type f \
-            -name 'mappings-layered+hash.2198.jar' -exec sha256sum {} \;
-
       - name: Test and build
         run: ./gradlew :test :common:test :platform-26.2:test build
