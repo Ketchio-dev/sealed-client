@@ -230,7 +230,9 @@ java -version
 ```
 
 GitHub Actions CI도 `.github/workflows/ci.yml`에서 양 플랫폼 단위 테스트와
-`build`를 실행합니다. Client GameTest와 재현성 검사는 공개 CI 범위 밖이므로
+`build`를 실행합니다. Loom이 운영체제별로 생성하는 매핑 JAR 때문에 공개 CI의
+해당 명령만 Gradle 검증을 `lenient`로 실행하며, 고정된 외부 의존성 메타데이터와
+로컬 릴리스 게이트는 계속 strict 검증을 사용합니다. Client GameTest와 재현성 검사는 공개 CI 범위 밖이므로
 릴리스 전에는 위 로컬 품질 게이트와 `scripts/verify-release.sh --repeat-builds 2`를
 별도로 실행해야 합니다.
 

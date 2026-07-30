@@ -75,7 +75,10 @@ scripts/verify-release.sh
 `check`에는 프로덕션 코드에서 알려진 네트워크, 프로세스 실행, 런처 계정과
 토큰 API 표식을 찾는 정책 테스트가 포함됩니다. Gradle dependency
 verification은 빌드 플러그인, Minecraft, Fabric, 테스트 도구와 전이 의존성의
-체크섬을 `gradle/verification-metadata.xml`과 대조합니다.
+체크섬을 `gradle/verification-metadata.xml`과 대조합니다. 단, Loom이 공식
+매핑 입력에서 운영체제별 바이트가 다른 중간 매핑 JAR을 생성하므로 공개 CI의
+단위 테스트·빌드 명령만 `lenient` 모드를 사용합니다. CI는 검증 실패를 로그에
+남기며 로컬 `qualityGate`와 릴리스 스크립트는 strict 검증을 유지합니다.
 
 `e2eTest`는 1.21.4 격리형 Fabric 클라이언트와 로컬 통합 서버를 실행합니다.
 2b2t나 다른 외부 Minecraft 서버에는 접속하지 않습니다. 26.2도 Client
