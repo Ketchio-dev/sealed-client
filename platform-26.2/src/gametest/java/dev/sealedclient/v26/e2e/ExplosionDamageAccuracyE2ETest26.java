@@ -99,6 +99,10 @@ public final class ExplosionDamageAccuracyE2ETest26 implements FabricClientGameT
 
                 server.runCommand("gamerule doImmediateRespawn true");
                 server.runCommand("gamerule mobGriefing false");
+                // A blast throws the player upward and the landing costs health
+                // that never came from the explosion. Without this the residual
+                // tracked blast strength exactly, because it was fall damage.
+                server.runCommand("gamerule fallDamage false");
                 // Regeneration between the two readings would be indistinguishable
                 // from the explosion dealing less damage than it did.
                 server.runCommand("gamerule naturalRegeneration false");
@@ -165,6 +169,12 @@ public final class ExplosionDamageAccuracyE2ETest26 implements FabricClientGameT
 
         double predicted = predict(context, centreX, centreY, centreZ, armor, toughness);
         double exposure = exposure(context, centreX, centreY, centreZ);
+
+        // The same formula fed with the server's own view. Comparing the two
+        // separates a wrong calculation from a client that is looking at
+        // slightly stale positions, which the end-to-end number alone cannot.
+        double[] fromServer = serverSideReference(server, armor, toughness);
+        String bookkeeping = damageBookkeeping(server);
         double distance = context.computeOnClient(client -> client.player.position()
                 .distanceTo(new net.minecraft.world.phys.Vec3(centreX, centreY, centreZ)));
         long crystals = context.computeOnClient(client -> {
@@ -192,11 +202,18 @@ public final class ExplosionDamageAccuracyE2ETest26 implements FabricClientGameT
 
         rows.add(String.format(
                 Locale.ROOT,
-                "%-24s offset=%.1f armor=%.0f dist=%.2f exposure=%.3f crystals=%d "
-                        + "predicted=%.3f actual=%.3f delta=%.3f",
-                scenario.name(), scenario.offset(), armor, distance, exposure, crystals,
-                predicted, actual, delta
+                "%-24s offset=%.1f armor=%.0f crystals=%d | client dist=%.4f exp=%.4f "
+                        + "pred=%.3f | server dist=%.4f exp=%.4f pred=%.3f | actual=%.3f "
+                        + "delta=%.3f serverDelta=%.3f",
+                scenario.name(), scenario.offset(), armor, crystals,
+                distance, exposure, predicted,
+                fromServer[0], fromServer[1], fromServer[2],
+                actual, delta, Math.abs(actual - fromServer[2])
         ));
+        if (delta > 0.0) {
+            rows.add("    ^ residual bookkeeping: " + bookkeeping
+                    + " -> " + damageBookkeeping(server));
+        }
 
         // An obstructed scenario that still reads full exposure never tested
         // the ray sampling, so the wall failed to go up.
@@ -251,6 +268,92 @@ public final class ExplosionDamageAccuracyE2ETest26 implements FabricClientGameT
             }
             var player = players.get(0);
             return (double) (player.getHealth() + player.getAbsorptionAmount());
+        });
+    }
+
+    /**
+     * Whatever the server absorbed outside the health pool.
+     *
+     * <p>Damage that lands on the absorption hearts or is soaked by the
+     * invulnerability window never shows up as a health drop, so a reading
+     * taken from health alone would understate the blast and look like formula
+     * error.</p>
+     */
+    private static String damageBookkeeping(TestDedicatedServerContext server) {
+        return server.computeOnServer(instance -> {
+            var players = instance.getPlayerList().getPlayers();
+            if (players.isEmpty()) {
+                return "no player";
+            }
+            var player = players.get(0);
+            return String.format(
+                    Locale.ROOT,
+                    "absorption=%.3f invulnerable=%d health=%.3f maxHealth=%.1f",
+                    player.getAbsorptionAmount(),
+                    player.invulnerableTime,
+                    player.getHealth(),
+                    player.getMaxHealth()
+            );
+        });
+    }
+
+    /**
+     * Runs the formula against the server's own positions and blocks.
+     *
+     * <p>The server is the only authority on where things actually are, so this
+     * isolates formula error from input error: if the server-fed prediction is
+     * exact while the client-fed one is not, the calculation is right and the
+     * client's view of the world is what lags.</p>
+     *
+     * @return distance, exposure and predicted damage, in that order
+     */
+    private static double[] serverSideReference(
+            TestDedicatedServerContext server,
+            double armor,
+            double toughness
+    ) {
+        return server.computeOnServer(instance -> {
+            var level = instance.getAllLevels().iterator().next();
+            var players = instance.getPlayerList().getPlayers();
+            if (players.isEmpty()) {
+                return new double[] {-1.0, -1.0, -1.0};
+            }
+            var player = players.get(0);
+
+            var crystals = level.getEntities(
+                    net.minecraft.world.level.entity.EntityTypeTest.forClass(
+                            net.minecraft.world.entity.boss.enderdragon.EndCrystal.class),
+                    player.getBoundingBox().inflate(24.0),
+                    crystal -> true
+            );
+            if (crystals.isEmpty()) {
+                return new double[] {-1.0, -1.0, -1.0};
+            }
+            var crystal = crystals.get(0);
+            var centre = crystal.position();
+
+            var box = player.getBoundingBox();
+            double serverExposure = ExplosionDamageFormula.exposure(
+                    box.minX, box.minY, box.minZ,
+                    box.maxX, box.maxY, box.maxZ,
+                    (x, y, z) -> level.clip(new net.minecraft.world.level.ClipContext(
+                            new net.minecraft.world.phys.Vec3(x, y, z),
+                            centre,
+                            net.minecraft.world.level.ClipContext.Block.COLLIDER,
+                            net.minecraft.world.level.ClipContext.Fluid.NONE,
+                            player
+                    )).getType() == net.minecraft.world.phys.HitResult.Type.MISS
+            );
+
+            double serverDistance = player.position().distanceTo(centre);
+            double raw = ExplosionDamageFormula.rawDamage(
+                    serverDistance, serverExposure, ExplosionDamageFormula.END_CRYSTAL_RADIUS
+            );
+            return new double[] {
+                    serverDistance,
+                    serverExposure,
+                    ExplosionDamageFormula.afterReductions(raw, armor, toughness, 0.0, 0)
+            };
         });
     }
 
@@ -331,6 +434,19 @@ public final class ExplosionDamageAccuracyE2ETest26 implements FabricClientGameT
             Scenario scenario
     ) {
         server.runCommand("attribute " + PLAYER + " minecraft:max_health base set 1024");
+
+        // fill silently does nothing in an unloaded chunk, and these scenarios
+        // sit hundreds of blocks apart, so the chunks must be resident *before*
+        // the platform is built. Doing this the other way round left the ground
+        // missing and the player fell to the bottom of the world.
+        server.runCommand(String.format(
+                Locale.ROOT,
+                "forceload add %d %d %d %d",
+                scenario.x() - 16, scenario.z() - 16,
+                scenario.x() + 24, scenario.z() + 16
+        ));
+        context.waitTicks(SETTLE_TICKS);
+
         server.runCommand(String.format(
                 Locale.ROOT,
                 "fill %d %d %d %d %d %d minecraft:obsidian",
@@ -343,17 +459,20 @@ public final class ExplosionDamageAccuracyE2ETest26 implements FabricClientGameT
                 scenario.x() - 6, scenario.y(), scenario.z() - 6,
                 scenario.x() + 14, scenario.y() + 4, scenario.z() + 6
         ));
-        // fill silently does nothing in an unloaded chunk, and these scenarios
-        // sit hundreds of blocks apart. Without this the platform is sometimes
-        // never built and the player falls to the bottom of the world instead
-        // of standing where the measurement expects.
-        server.runCommand(String.format(
-                Locale.ROOT,
-                "forceload add %d %d %d %d",
-                scenario.x() - 16, scenario.z() - 16,
-                scenario.x() + 24, scenario.z() + 16
-        ));
         context.waitTicks(SETTLE_TICKS);
+
+        // Prove the ground exists rather than discovering it from a fall.
+        boolean platformBuilt = server.computeOnServer(instance -> {
+            var level = instance.getAllLevels().iterator().next();
+            return !level.getBlockState(new net.minecraft.core.BlockPos(
+                    scenario.x(), scenario.y() - 1, scenario.z())).isAir();
+        });
+        if (!platformBuilt) {
+            throw new AssertionError(
+                    scenario.name() + ": the platform was never built at y="
+                            + (scenario.y() - 1) + ", so the chunk is still unloaded"
+            );
+        }
 
         if (scenario.obstructed()) {
             // A pillar between player and blast, tall and wide enough that some

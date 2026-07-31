@@ -49,10 +49,10 @@ class ExplosionDamageFormulaTest {
      * moved the prediction by more than the residual being asserted.</p>
      */
     private static final List<Measured> MEASURED = List.of(
-            new Measured("point_blank_unarmored", distanceFor(1.0), 1.0, 0.0, 0.0, 70.067),
-            new Measured("close_unarmored", distanceFor(2.0), 1.0, 0.0, 0.0, 62.646),
+            new Measured("point_blank_unarmored", distanceFor(1.0), 1.0, 0.0, 0.0, 70.234),
+            new Measured("close_unarmored", distanceFor(2.0), 1.0, 0.0, 0.0, 62.813),
             new Measured("mid_unarmored", distanceFor(4.0), 1.0, 0.0, 0.0, 46.499),
-            new Measured("far_unarmored", distanceFor(7.0), 1.0, 0.0, 0.0, 25.170),
+            new Measured("far_unarmored", distanceFor(7.0), 1.0, 0.0, 0.0, 25.337),
             new Measured("point_blank_armored", distanceFor(1.0), 1.0, 20.0, 8.0, 59.417),
             new Measured("close_armored", distanceFor(2.0), 1.0, 20.0, 8.0, 52.260),
             new Measured("mid_armored", distanceFor(4.0), 1.0, 20.0, 8.0, 31.110),
@@ -68,13 +68,27 @@ class ExplosionDamageFormulaTest {
     /**
      * The residual between prediction and measurement, in damage points.
      *
-     * <p>Six of the ten scenarios, including every armoured and every obstructed
-     * one, predict the server exactly. The rest sit within two thirds of a
-     * point, and the error is always a multiple of one sixth rather than random
-     * scatter, which is the quantisation of health as it travels between server
-     * and client. It is bounded here so it cannot grow unnoticed.</p>
+     * <p>Seven of the ten scenarios predict the server exactly, including every
+     * armoured one, every obstructed one, and the longest unarmoured range. The
+     * remaining three are unarmoured hits at close range and read low by 0.500,
+     * 0.167 and 0.167.</p>
+     *
+     * <p>What that residual is not: it is not the distance or the exposure,
+     * because the game test now runs the same formula against the server's own
+     * positions and blocks and gets the identical prediction. It is not fall
+     * damage or absorption, which were measured and ruled out. It survives
+     * unchanged across runs, so it is deterministic rather than timing. The
+     * remaining candidate is that the server accumulates the reduction chain in
+     * {@code float} where this runs in {@code double}, which would bite hardest
+     * exactly where it does: on large unarmoured hits that skip the armour path.
+     * That is a hypothesis, not a finding, and it is left named rather than
+     * quietly folded into the tolerance.</p>
+     *
+     * <p>The error is one-directional: the prediction is never lower than the
+     * damage dealt. Overestimating incoming damage is the safe direction for
+     * self-damage checks. Bounded here so it cannot grow unnoticed.</p>
      */
-    private static final double MEASURED_RESIDUAL = 0.668;
+    private static final double MEASURED_RESIDUAL = 0.501;
 
     private static double predict(Measured measured) {
         double raw = ExplosionDamageFormula.rawDamage(
@@ -131,6 +145,43 @@ class ExplosionDamageFormulaTest {
         double huge = 1000.0;
         double reduced = ExplosionDamageFormula.afterArmor(huge, 20.0, 8.0);
         assertEquals(huge * (1.0 - 4.0 / 25.0), reduced, 1.0e-9);
+    }
+
+    @Test
+    void theExactlyPredictedScenariosStayExact() {
+        // Seven scenarios currently match the server to the digit. Folding them
+        // into the same tolerance as the three that do not would let an exact
+        // prediction quietly decay into an approximate one.
+        List<String> exact = List.of(
+                "far_unarmored", "point_blank_armored", "close_armored",
+                "mid_armored", "far_armored", "obstructed_unarmored", "obstructed_armored"
+        );
+        for (Measured measured : MEASURED) {
+            if (!exact.contains(measured.name())) {
+                continue;
+            }
+            assertEquals(
+                    measured.actual(),
+                    predict(measured),
+                    0.001,
+                    measured.name() + " used to match the server exactly"
+            );
+        }
+    }
+
+    @Test
+    void thePredictionNeverUnderstatesTheDamageDealt() {
+        // Overestimating is the safe direction: a self-damage check that thinks
+        // a blast hurts more than it does refuses a placement, while one that
+        // thinks it hurts less takes a lethal one. The margin allows for the
+        // recorded values being rounded to three decimals in the game test log.
+        for (Measured measured : MEASURED) {
+            assertTrue(
+                    predict(measured) >= measured.actual() - 0.001,
+                    () -> measured.name() + " predicted " + predict(measured)
+                            + " but the server dealt " + measured.actual()
+            );
+        }
     }
 
     @Test
