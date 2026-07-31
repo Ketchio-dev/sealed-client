@@ -8,6 +8,7 @@ import dev.sealedclient.core.TickableModule;
 import dev.sealedclient.core.setting.BooleanSetting;
 import dev.sealedclient.core.setting.DoubleSetting;
 import dev.sealedclient.core.setting.IntegerSetting;
+import dev.sealedclient.platform.HotbarAccess;
 import dev.sealedclient.service.ActionCoordinator;
 import dev.sealedclient.service.RotationApplier;
 import net.minecraft.client.Minecraft;
@@ -101,8 +102,8 @@ public final class QuiverModule extends Module implements TickableModule {
                     || !actions.claim(ActionCoordinator.Channel.USE, OWNER, PRIORITY, 2)) {
                 return;
             }
-            previousSlot = minecraft.player.getInventory().selected;
-            minecraft.player.getInventory().setSelectedHotbarSlot(bow);
+            previousSlot = HotbarAccess.selectedSlot(minecraft.player);
+            HotbarAccess.selectSlot(minecraft.player, bow);
             // Straight up, so the arrow lands back on the player. Applied before
             // useItem because the use packet carries the current aim.
             rotations.request(minecraft, OWNER, PRIORITY, minecraft.player.getYRot(), -90.0f);
@@ -149,7 +150,7 @@ public final class QuiverModule extends Module implements TickableModule {
 
     private void restore(Minecraft minecraft) {
         if (minecraft.player != null && previousSlot >= 0 && previousSlot < 9) {
-            minecraft.player.getInventory().setSelectedHotbarSlot(previousSlot);
+            HotbarAccess.selectSlot(minecraft.player, previousSlot);
         }
         previousSlot = -1;
         started = false;

@@ -6,6 +6,7 @@ import dev.sealedclient.core.ModuleRisk;
 import dev.sealedclient.core.TickableModule;
 import dev.sealedclient.core.setting.BooleanSetting;
 import dev.sealedclient.core.setting.IntegerSetting;
+import dev.sealedclient.platform.HotbarAccess;
 import dev.sealedclient.service.ActionCoordinator;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
@@ -65,7 +66,7 @@ public final class AutoToolModule extends Module implements TickableModule {
         BlockPos position = hitResult.getBlockPos();
         BlockState state = minecraft.level.getBlockState(position);
         int bestSlot = bestSlot(minecraft, state);
-        int selected = minecraft.player.getInventory().selected;
+        int selected = HotbarAccess.selectedSlot(minecraft.player);
         if (bestSlot >= 0 && bestSlot != selected && actions.claim(
                 ActionCoordinator.Channel.HOTBAR,
                 id(),
@@ -75,7 +76,7 @@ public final class AutoToolModule extends Module implements TickableModule {
             if (!switched) {
                 previousSlot = selected;
             }
-            minecraft.player.getInventory().setSelectedHotbarSlot(bestSlot);
+            HotbarAccess.selectSlot(minecraft.player, bestSlot);
             switched = true;
         }
     }
@@ -87,7 +88,7 @@ public final class AutoToolModule extends Module implements TickableModule {
     }
 
     private int bestSlot(Minecraft minecraft, BlockState state) {
-        int selected = minecraft.player.getInventory().selected;
+        int selected = HotbarAccess.selectedSlot(minecraft.player);
         int bestSlot = selected;
         double bestScore = score(minecraft.player.getInventory().getItem(selected), state);
 
@@ -117,7 +118,7 @@ public final class AutoToolModule extends Module implements TickableModule {
                 && minecraft.player != null
                 && previousSlot >= 0
                 && previousSlot < 9) {
-            minecraft.player.getInventory().setSelectedHotbarSlot(previousSlot);
+            HotbarAccess.selectSlot(minecraft.player, previousSlot);
         }
         switched = false;
         previousSlot = -1;

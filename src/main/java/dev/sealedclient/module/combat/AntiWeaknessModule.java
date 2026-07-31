@@ -6,13 +6,14 @@ import dev.sealedclient.core.Module;
 import dev.sealedclient.core.ModuleRisk;
 import dev.sealedclient.core.TickableModule;
 import dev.sealedclient.core.setting.BooleanSetting;
+import dev.sealedclient.platform.HotbarAccess;
+import dev.sealedclient.platform.ItemKinds;
 import dev.sealedclient.service.ActionCoordinator;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.AxeItem;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.SwordItem;
 import net.minecraft.world.phys.EntityHitResult;
 
 import java.util.Objects;
@@ -54,7 +55,7 @@ public final class AntiWeaknessModule extends Module implements TickableModule {
             return;
         }
         int best = bestWeapon(minecraft);
-        int selected = minecraft.player.getInventory().selected;
+        int selected = HotbarAccess.selectedSlot(minecraft.player);
         if (best < 0
                 || best == selected
                 || !actions.claim(ActionCoordinator.Channel.HOTBAR, OWNER, PRIORITY, 1)) {
@@ -63,7 +64,7 @@ public final class AntiWeaknessModule extends Module implements TickableModule {
         if (!switched) {
             previousSlot = selected;
         }
-        minecraft.player.getInventory().setSelectedHotbarSlot(best);
+        HotbarAccess.selectSlot(minecraft.player, best);
         switched = true;
     }
 
@@ -78,11 +79,11 @@ public final class AntiWeaknessModule extends Module implements TickableModule {
         float bestSpeed = -1.0f;
         for (int slot = 0; slot < 9; slot++) {
             ItemStack stack = minecraft.player.getInventory().getItem(slot);
-            if (!(stack.getItem() instanceof SwordItem)
+            if (!ItemKinds.isSword(stack)
                     && !(stack.getItem() instanceof AxeItem)) {
                 continue;
             }
-            float score = stack.getItem() instanceof SwordItem ? 2.0f : 1.0f;
+            float score = ItemKinds.isSword(stack) ? 2.0f : 1.0f;
             score += stack.isDamageableItem()
                     ? (float) (stack.getMaxDamage() - stack.getDamageValue()) / stack.getMaxDamage()
                     : 1.0f;
@@ -100,7 +101,7 @@ public final class AntiWeaknessModule extends Module implements TickableModule {
                 && minecraft.player != null
                 && previousSlot >= 0
                 && previousSlot < 9) {
-            minecraft.player.getInventory().setSelectedHotbarSlot(previousSlot);
+            HotbarAccess.selectSlot(minecraft.player, previousSlot);
         }
         switched = false;
         previousSlot = -1;

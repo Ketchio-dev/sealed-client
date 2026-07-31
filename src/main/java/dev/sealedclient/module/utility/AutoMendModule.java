@@ -6,6 +6,7 @@ import dev.sealedclient.core.ModuleRisk;
 import dev.sealedclient.core.TickableModule;
 import dev.sealedclient.core.setting.BooleanSetting;
 import dev.sealedclient.core.setting.IntegerSetting;
+import dev.sealedclient.platform.HotbarAccess;
 import dev.sealedclient.service.ActionCoordinator;
 import dev.sealedclient.service.RotationApplier;
 import net.minecraft.client.Minecraft;
@@ -108,7 +109,7 @@ public final class AutoMendModule extends Module implements TickableModule {
             return;
         }
         if (!mending) {
-            previousSlot = minecraft.player.getInventory().selected;
+            previousSlot = HotbarAccess.selectedSlot(minecraft.player);
             mending = true;
         }
         if (!actions.claim(ActionCoordinator.Channel.HOTBAR, OWNER, 50, 1)
@@ -118,7 +119,7 @@ public final class AutoMendModule extends Module implements TickableModule {
             return;
         }
 
-        minecraft.player.getInventory().setSelectedHotbarSlot(bottleSlot);
+        HotbarAccess.selectSlot(minecraft.player, bottleSlot);
         // Straight down. Applied before useItem because the use packet carries
         // the current aim; the applier restores the old aim once we stop.
         rotations.request(minecraft, OWNER, 50, minecraft.player.getYRot(), 90.0f);
@@ -137,7 +138,7 @@ public final class AutoMendModule extends Module implements TickableModule {
     private void stop(Minecraft minecraft) {
         if (mending && minecraft.player != null) {
             if (previousSlot >= 0 && previousSlot < 9) {
-                minecraft.player.getInventory().setSelectedHotbarSlot(previousSlot);
+                HotbarAccess.selectSlot(minecraft.player, previousSlot);
             }
         }
         mending = false;

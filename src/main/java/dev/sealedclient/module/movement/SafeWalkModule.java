@@ -5,6 +5,7 @@ import dev.sealedclient.core.Module;
 import dev.sealedclient.core.ModuleRisk;
 import dev.sealedclient.core.TickableModule;
 import dev.sealedclient.core.setting.DoubleSetting;
+import dev.sealedclient.platform.MovementInputAccess;
 import dev.sealedclient.service.ActionCoordinator;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.phys.AABB;
@@ -64,8 +65,7 @@ public final class SafeWalkModule extends Module implements TickableModule {
         if (actions.claim(ActionCoordinator.Channel.MOVEMENT, id(), PRIORITY, 1)) {
             Vec3 velocity = minecraft.player.getDeltaMovement();
             minecraft.player.setDeltaMovement(0.0, velocity.y, 0.0);
-            minecraft.player.input.forwardImpulse = 0.0f;
-            minecraft.player.input.leftImpulse = 0.0f;
+            MovementInputAccess.clear(minecraft.player);
         }
     }
 

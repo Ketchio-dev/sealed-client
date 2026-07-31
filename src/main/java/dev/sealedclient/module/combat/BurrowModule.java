@@ -7,6 +7,7 @@ import dev.sealedclient.core.ModuleRisk;
 import dev.sealedclient.core.TickableModule;
 import dev.sealedclient.core.setting.BooleanSetting;
 import dev.sealedclient.core.setting.IntegerSetting;
+import dev.sealedclient.platform.HotbarAccess;
 import dev.sealedclient.service.ActionCoordinator;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
@@ -88,11 +89,11 @@ public final class BurrowModule extends Module implements TickableModule {
                 || !actions.claim(ActionCoordinator.Channel.USE, OWNER, PRIORITY, 1)) {
             return;
         }
-        int previous = minecraft.player.getInventory().selected;
-        minecraft.player.getInventory().setSelectedHotbarSlot(slot);
+        int previous = HotbarAccess.selectedSlot(minecraft.player);
+        HotbarAccess.selectSlot(minecraft.player, slot);
         boolean placed = CombatUtil.placeBlock(minecraft, start, InteractionHand.MAIN_HAND);
         if (previous != slot) {
-            minecraft.player.getInventory().setSelectedHotbarSlot(previous);
+            HotbarAccess.selectSlot(minecraft.player, previous);
         }
         if (placed) {
             reset();

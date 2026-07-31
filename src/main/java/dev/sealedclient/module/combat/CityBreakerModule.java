@@ -7,6 +7,8 @@ import dev.sealedclient.core.ModuleRisk;
 import dev.sealedclient.core.TickableModule;
 import dev.sealedclient.core.setting.BooleanSetting;
 import dev.sealedclient.core.setting.DoubleSetting;
+import dev.sealedclient.platform.HotbarAccess;
+import dev.sealedclient.platform.ItemKinds;
 import dev.sealedclient.service.ActionCoordinator;
 import dev.sealedclient.service.FriendManager;
 import net.minecraft.client.Minecraft;
@@ -15,7 +17,6 @@ import net.minecraft.core.Direction;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.PickaxeItem;
 import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.Comparator;
@@ -126,12 +127,12 @@ public final class CityBreakerModule extends Module implements TickableModule {
 
     private void selectPickaxe(Minecraft minecraft, BlockPos position) {
         BlockState state = minecraft.level.getBlockState(position);
-        int selected = minecraft.player.getInventory().selected;
+        int selected = HotbarAccess.selectedSlot(minecraft.player);
         int best = -1;
         float speed = -1.0f;
         for (int slot = 0; slot < 9; slot++) {
             ItemStack stack = minecraft.player.getInventory().getItem(slot);
-            if (!(stack.getItem() instanceof PickaxeItem)) {
+            if (!ItemKinds.isPickaxe(stack)) {
                 continue;
             }
             float candidate = stack.getDestroySpeed(state);
@@ -144,7 +145,7 @@ public final class CityBreakerModule extends Module implements TickableModule {
             if (previousSlot < 0) {
                 previousSlot = selected;
             }
-            minecraft.player.getInventory().setSelectedHotbarSlot(best);
+            HotbarAccess.selectSlot(minecraft.player, best);
         }
     }
 
@@ -154,7 +155,7 @@ public final class CityBreakerModule extends Module implements TickableModule {
         }
         mining = null;
         if (minecraft.player != null && previousSlot >= 0 && previousSlot < 9) {
-            minecraft.player.getInventory().setSelectedHotbarSlot(previousSlot);
+            HotbarAccess.selectSlot(minecraft.player, previousSlot);
         }
         previousSlot = -1;
     }

@@ -8,6 +8,7 @@ import dev.sealedclient.core.TickableModule;
 import dev.sealedclient.core.setting.BooleanSetting;
 import dev.sealedclient.core.setting.DoubleSetting;
 import dev.sealedclient.core.setting.EnumSetting;
+import dev.sealedclient.platform.HotbarAccess;
 import dev.sealedclient.service.ActionCoordinator;
 import dev.sealedclient.service.FriendManager;
 import net.minecraft.client.Minecraft;
@@ -164,7 +165,7 @@ public final class AutoMineModule extends Module implements TickableModule {
 
     private void selectTool(Minecraft minecraft, BlockPos position) {
         BlockState state = minecraft.level.getBlockState(position);
-        int selected = minecraft.player.getInventory().selected;
+        int selected = HotbarAccess.selectedSlot(minecraft.player);
         int best = selected;
         float bestSpeed = minecraft.player.getInventory().getItem(selected).getDestroySpeed(state);
         for (int slot = 0; slot < 9; slot++) {
@@ -179,7 +180,7 @@ public final class AutoMineModule extends Module implements TickableModule {
             if (previousSlot < 0) {
                 previousSlot = selected;
             }
-            minecraft.player.getInventory().setSelectedHotbarSlot(best);
+            HotbarAccess.selectSlot(minecraft.player, best);
         }
     }
 
@@ -192,7 +193,7 @@ public final class AutoMineModule extends Module implements TickableModule {
                 && previousSlot >= 0
                 && previousSlot < 9
                 && minecraft.player != null) {
-            minecraft.player.getInventory().setSelectedHotbarSlot(previousSlot);
+            HotbarAccess.selectSlot(minecraft.player, previousSlot);
         }
         previousSlot = -1;
     }

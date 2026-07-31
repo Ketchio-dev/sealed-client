@@ -7,6 +7,7 @@ import dev.sealedclient.core.ModuleRisk;
 import dev.sealedclient.core.TickableModule;
 import dev.sealedclient.core.setting.BooleanSetting;
 import dev.sealedclient.core.setting.IntegerSetting;
+import dev.sealedclient.platform.HotbarAccess;
 import dev.sealedclient.service.ActionCoordinator;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
@@ -82,8 +83,8 @@ public final class SurroundModule extends Module implements TickableModule {
             return;
         }
 
-        int previous = minecraft.player.getInventory().selected;
-        minecraft.player.getInventory().setSelectedHotbarSlot(obsidian);
+        int previous = HotbarAccess.selectedSlot(minecraft.player);
+        HotbarAccess.selectSlot(minecraft.player, obsidian);
         BlockPos feet = minecraft.player.blockPosition();
         int placed = 0;
         if (floor.get() && CombatUtil.placeBlock(minecraft, feet.below(), InteractionHand.MAIN_HAND)) {
@@ -102,7 +103,7 @@ public final class SurroundModule extends Module implements TickableModule {
             }
         }
         if (restoreSlot.get() && previous != obsidian) {
-            minecraft.player.getInventory().setSelectedHotbarSlot(previous);
+            HotbarAccess.selectSlot(minecraft.player, previous);
         }
         if (placed > 0) {
             cooldown = delay.get();

@@ -5,6 +5,7 @@ import dev.sealedclient.core.Module;
 import dev.sealedclient.core.ModuleRisk;
 import dev.sealedclient.core.TickableModule;
 import dev.sealedclient.core.setting.BooleanSetting;
+import dev.sealedclient.platform.MovementInputAccess;
 import net.minecraft.client.Minecraft;
 
 public final class AutoSprintModule extends Module implements TickableModule {
@@ -33,9 +34,8 @@ public final class AutoSprintModule extends Module implements TickableModule {
         }
 
         boolean moving = requireForward.get()
-                ? minecraft.player.input.forwardImpulse > 0.0f
-                : Math.abs(minecraft.player.input.forwardImpulse) > 0.0f
-                || Math.abs(minecraft.player.input.leftImpulse) > 0.0f;
+                ? MovementInputAccess.forward(minecraft.player) > 0.0f
+                : MovementInputAccess.isMoving(minecraft.player);
 
         if (moving
                 && !minecraft.player.isCrouching()

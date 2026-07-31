@@ -1,4 +1,4 @@
-# Sealed Client 3.3
+# Sealed Client 3.3.1
 
 [CI workflow](.github/workflows/ci.yml)
 

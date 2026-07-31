@@ -6,6 +6,7 @@ import dev.sealedclient.core.ModuleRisk;
 import dev.sealedclient.core.TickableModule;
 import dev.sealedclient.core.setting.BooleanSetting;
 import dev.sealedclient.core.setting.IntegerSetting;
+import dev.sealedclient.platform.HotbarAccess;
 import dev.sealedclient.service.ActionCoordinator;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.component.DataComponents;
@@ -72,9 +73,9 @@ public final class AutoEatModule extends Module implements TickableModule {
             return;
         }
         if (!eating) {
-            previousSlot = minecraft.player.getInventory().selected;
+            previousSlot = HotbarAccess.selectedSlot(minecraft.player);
         }
-        minecraft.player.getInventory().setSelectedHotbarSlot(slot);
+        HotbarAccess.selectSlot(minecraft.player, slot);
         minecraft.options.keyUse.setDown(true);
         eating = true;
     }
@@ -108,7 +109,7 @@ public final class AutoEatModule extends Module implements TickableModule {
         }
         minecraft.options.keyUse.setDown(false);
         if (minecraft.player != null && previousSlot >= 0 && previousSlot < 9) {
-            minecraft.player.getInventory().setSelectedHotbarSlot(previousSlot);
+            HotbarAccess.selectSlot(minecraft.player, previousSlot);
         }
         eating = false;
         previousSlot = -1;

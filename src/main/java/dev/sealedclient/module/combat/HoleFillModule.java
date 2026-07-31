@@ -7,6 +7,7 @@ import dev.sealedclient.core.ModuleRisk;
 import dev.sealedclient.core.TickableModule;
 import dev.sealedclient.core.setting.DoubleSetting;
 import dev.sealedclient.core.setting.IntegerSetting;
+import dev.sealedclient.platform.HotbarAccess;
 import dev.sealedclient.service.ActionCoordinator;
 import dev.sealedclient.service.FriendManager;
 import net.minecraft.client.Minecraft;
@@ -99,11 +100,11 @@ public final class HoleFillModule extends Module implements TickableModule {
                 || !actions.claim(ActionCoordinator.Channel.USE, OWNER, PRIORITY, 1)) {
             return;
         }
-        int previous = minecraft.player.getInventory().selected;
-        minecraft.player.getInventory().setSelectedHotbarSlot(obsidian);
+        int previous = HotbarAccess.selectedSlot(minecraft.player);
+        HotbarAccess.selectSlot(minecraft.player, obsidian);
         boolean placed = CombatUtil.placeBlock(minecraft, hole, InteractionHand.MAIN_HAND);
         if (previous != obsidian) {
-            minecraft.player.getInventory().setSelectedHotbarSlot(previous);
+            HotbarAccess.selectSlot(minecraft.player, previous);
         }
         if (placed) {
             cooldown = delay.get();

@@ -1,6 +1,7 @@
 package dev.sealedclient.module.movement;
 
 import dev.sealedclient.SealedClient;
+import dev.sealedclient.platform.MovementInputAccess;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
@@ -59,8 +60,8 @@ final class SealedMovementSupport {
     }
 
     static Vec3 inputDirection(LocalPlayer player) {
-        double side = player.input.leftImpulse;
-        double forward = player.input.forwardImpulse;
+        double side = MovementInputAccess.left(player);
+        double forward = MovementInputAccess.forward(player);
         double length = Math.hypot(side, forward);
         if (length < 1.0E-4) {
             return Vec3.ZERO;

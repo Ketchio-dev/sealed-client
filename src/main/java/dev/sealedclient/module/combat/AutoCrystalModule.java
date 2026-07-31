@@ -15,6 +15,7 @@ import dev.sealedclient.core.setting.DoubleSetting;
 import dev.sealedclient.core.setting.IntegerSetting;
 import dev.sealedclient.event.EventBus;
 import dev.sealedclient.event.PacketEvent;
+import dev.sealedclient.platform.HotbarAccess;
 import dev.sealedclient.service.ActionCoordinator;
 import dev.sealedclient.service.RotationApplier;
 import dev.sealedclient.service.FriendManager;
@@ -725,10 +726,10 @@ public final class AutoCrystalModule extends Module implements TickableModule {
                 && !actions.claim(ActionCoordinator.Channel.HOTBAR, OWNER, PRIORITY, 1))) {
             return false;
         }
-        int previous = minecraft.player.getInventory().selected;
+        int previous = HotbarAccess.selectedSlot(minecraft.player);
         try {
             if (selection.slot() >= 0) {
-                minecraft.player.getInventory().setSelectedHotbarSlot(selection.slot());
+                HotbarAccess.selectSlot(minecraft.player, selection.slot());
                 if (!minecraft.player.getInventory().getSelected().is(Items.END_CRYSTAL)) {
                     return false;
                 }
@@ -760,7 +761,7 @@ public final class AutoCrystalModule extends Module implements TickableModule {
                     && previous >= 0
                     && previous < 9
                     && minecraft.player != null) {
-                minecraft.player.getInventory().setSelectedHotbarSlot(previous);
+                HotbarAccess.selectSlot(minecraft.player, previous);
             }
         }
     }

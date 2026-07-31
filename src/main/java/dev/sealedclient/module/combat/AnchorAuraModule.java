@@ -7,6 +7,7 @@ import dev.sealedclient.core.ModuleRisk;
 import dev.sealedclient.core.TickableModule;
 import dev.sealedclient.core.setting.DoubleSetting;
 import dev.sealedclient.core.setting.IntegerSetting;
+import dev.sealedclient.platform.HotbarAccess;
 import dev.sealedclient.service.ActionCoordinator;
 import dev.sealedclient.service.RotationApplier;
 import dev.sealedclient.service.FriendManager;
@@ -161,8 +162,8 @@ public final class AnchorAuraModule extends Module implements TickableModule {
                 || !actions.claim(ActionCoordinator.Channel.USE, OWNER, PRIORITY, 1)) {
             return false;
         }
-        int previous = minecraft.player.getInventory().selected;
-        minecraft.player.getInventory().setSelectedHotbarSlot(slot);
+        int previous = HotbarAccess.selectedSlot(minecraft.player);
+        HotbarAccess.selectSlot(minecraft.player, slot);
         if (actions.claim(ActionCoordinator.Channel.ROTATION, OWNER, PRIORITY, 1)) {
             CombatUtil.rotateToward(minecraft, rotations, OWNER, PRIORITY, anchor.getCenter());
         }
@@ -181,7 +182,7 @@ public final class AnchorAuraModule extends Module implements TickableModule {
             minecraft.player.swing(InteractionHand.MAIN_HAND);
         }
         if (previous != slot) {
-            minecraft.player.getInventory().setSelectedHotbarSlot(previous);
+            HotbarAccess.selectSlot(minecraft.player, previous);
         }
         return used;
     }
@@ -195,8 +196,8 @@ public final class AnchorAuraModule extends Module implements TickableModule {
                 || !actions.claim(ActionCoordinator.Channel.USE, OWNER, PRIORITY, 1)) {
             return false;
         }
-        int previous = minecraft.player.getInventory().selected;
-        minecraft.player.getInventory().setSelectedHotbarSlot(slot);
+        int previous = HotbarAccess.selectedSlot(minecraft.player);
+        HotbarAccess.selectSlot(minecraft.player, slot);
         if (actions.claim(ActionCoordinator.Channel.ROTATION, OWNER, PRIORITY, 1)) {
             CombatUtil.rotateToward(minecraft, rotations, OWNER, PRIORITY, position.getCenter());
         }
@@ -206,7 +207,7 @@ public final class AnchorAuraModule extends Module implements TickableModule {
                 InteractionHand.MAIN_HAND
         );
         if (previous != slot) {
-            minecraft.player.getInventory().setSelectedHotbarSlot(previous);
+            HotbarAccess.selectSlot(minecraft.player, previous);
         }
         return placed;
     }
