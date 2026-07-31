@@ -1,5 +1,7 @@
 package dev.sealedclient.v26.combat;
 
+import dev.sealedclient.common.combat.CrystalDecisionEngine;
+
 import java.util.List;
 import java.util.Objects;
 
@@ -186,22 +188,7 @@ final class BedAnchorDecisionEngine26 {
             double exposure,
             double power
     ) {
-        if (!Double.isFinite(distance)
-                || !Double.isFinite(exposure)
-                || !Double.isFinite(power)
-                || distance < 0.0
-                || power <= 0.0
-                || exposure <= 0.0
-                || distance >= power * 2.0) {
-            return 0.0;
-        }
-        double clampedExposure = Math.min(1.0, exposure);
-        double impact = (1.0 - distance / (power * 2.0))
-                * clampedExposure;
-        return impact <= 0.0
-                ? 0.0
-                : ((impact * impact + impact)
-                * 0.5 * 7.0 * power * 2.0) + 1.0;
+        return CrystalDecisionEngine.rawExplosionDamage(distance, exposure, power);
     }
 
     /**
