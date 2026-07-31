@@ -7,6 +7,7 @@ import dev.sealedclient.core.ModuleRisk;
 import dev.sealedclient.core.TickableModule;
 import dev.sealedclient.core.setting.DoubleSetting;
 import dev.sealedclient.service.ActionCoordinator;
+import dev.sealedclient.service.RotationApplier;
 import dev.sealedclient.service.FriendManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.player.Player;
@@ -23,6 +24,7 @@ public final class BowAimModule extends Module implements TickableModule {
 
     private final FriendManager friends;
     private final ActionCoordinator actions;
+    private final RotationApplier rotations;
     private final DoubleSetting range = addSetting(new DoubleSetting(
             "range",
             "Range",
@@ -51,7 +53,7 @@ public final class BowAimModule extends Module implements TickableModule {
             0.01
     ));
 
-    public BowAimModule(FriendManager friends, ActionCoordinator actions) {
+    public BowAimModule(FriendManager friends, ActionCoordinator actions, RotationApplier rotations) {
         super(
                 "bow_aim",
                 "Bow Aim",
@@ -62,6 +64,7 @@ public final class BowAimModule extends Module implements TickableModule {
         );
         this.friends = Objects.requireNonNull(friends, "friends");
         this.actions = Objects.requireNonNull(actions, "actions");
+        this.rotations = Objects.requireNonNull(rotations, "rotations");
     }
 
     @Override
@@ -89,7 +92,7 @@ public final class BowAimModule extends Module implements TickableModule {
         Vec3 predicted = target.getEyePosition()
                 .add(target.getDeltaMovement().scale(flightTicks))
                 .add(0.0, 0.5 * gravity.get() * flightTicks * flightTicks, 0.0);
-        CombatUtil.rotateToward(minecraft.player, predicted);
+        CombatUtil.rotateToward(minecraft, rotations, OWNER, PRIORITY, predicted);
     }
 
     @Override

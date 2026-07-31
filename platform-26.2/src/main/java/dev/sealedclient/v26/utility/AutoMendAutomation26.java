@@ -1,5 +1,6 @@
 package dev.sealedclient.v26.utility;
 
+import dev.sealedclient.v26.RotationApplier26;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.InteractionHand;
@@ -20,6 +21,9 @@ import java.util.Set;
  * Ownership-aware Minecraft 26.2 Auto Mend service.
  */
 public final class AutoMendAutomation26 {
+    private static final String ROTATION_OWNER = "auto_mend";
+    private static final int ROTATION_PRIORITY = 50;
+
     public static final String OWNER = "auto_mend";
     public static final int PRIORITY = 60;
     public static final Set<UtilityActionArbiter26.Channel> CHANNELS =
@@ -174,7 +178,8 @@ public final class AutoMendAutomation26 {
      */
     public boolean execute(
             Minecraft client,
-            UtilityActionArbiter26 arbiter
+            UtilityActionArbiter26 arbiter,
+            RotationApplier26 rotations
     ) {
         Objects.requireNonNull(arbiter, "arbiter");
         AutoMendDecisionEngine26.Decision decision = pending;
@@ -213,7 +218,7 @@ public final class AutoMendAutomation26 {
             );
         }
         player.getInventory().setSelectedSlot(decision.bottleSlot());
-        player.setXRot(MENDING_PITCH);
+        rotations.request(client, ROTATION_OWNER, ROTATION_PRIORITY, player.getYRot(), MENDING_PITCH);
         yieldedLease = null;
         if (decision.action()
                 == AutoMendDecisionEngine26.Action.HOLD
@@ -479,9 +484,7 @@ public final class AutoMendAutomation26 {
                     current.previousSlot()
             );
         }
-        if (Float.compare(player.getXRot(), MENDING_PITCH) == 0) {
-            player.setXRot(current.previousPitch());
-        }
+
     }
 
     private record Bottle(int slot, int count) {

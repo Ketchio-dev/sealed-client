@@ -114,6 +114,7 @@ public final class ClientRuntime26 {
             new CombatDefensiveConstructionAutomation26();
     private final CombatBedAnchorAutomation26 combatBedAnchor =
             new CombatBedAnchorAutomation26();
+    private final RotationApplier26 rotationApplier = new RotationApplier26();
     private final CombatBowAimAutomation26 combatBowAim =
             new CombatBowAimAutomation26();
     private final CombatQuiverAutomation26 combatQuiver =
@@ -273,6 +274,7 @@ public final class ClientRuntime26 {
             }
         }
 
+        rotationApplier.beginTick();
         runContainedTickStep(modules, "keybinds", List.of(),
                 () -> tickModuleKeybinds(client));
         runContainedTickStep(modules, "server-profile", List.of(),
@@ -312,6 +314,7 @@ public final class ClientRuntime26 {
             tickConfigSave();
             return;
         }
+
 
         runContainedTickStep(
                 modules,
@@ -388,6 +391,8 @@ public final class ClientRuntime26 {
                 List.of("auto_respawn"),
                 () -> applyAutoRespawn(client)
         );
+        runContainedTickStep(modules, "rotation-restore", List.of(),
+                () -> rotationApplier.endTick(client));
         runContainedTickStep(modules, "config-save", List.of(), this::tickConfigSave);
     }
 
@@ -864,9 +869,9 @@ public final class ClientRuntime26 {
         combatCrystalMine.execute(client, friends, combatArbiter);
         combatConstruction.execute(client, friends, combatArbiter);
         combatBedAnchor.execute(client, friends, combatArbiter);
-        combatBowAim.execute(client, combatArbiter);
-        combatQuiver.execute(client, combatArbiter);
-        combatSiege.execute(client, friends, combatArbiter);
+        combatBowAim.execute(client, combatArbiter, rotationApplier);
+        combatQuiver.execute(client, combatArbiter, rotationApplier);
+        combatSiege.execute(client, friends, combatArbiter, rotationApplier);
         autoArmor.execute(client, combatArbiter);
         replenish.execute(client, combatArbiter);
         chestSwap.execute(client, combatArbiter);
@@ -964,7 +969,7 @@ public final class ClientRuntime26 {
                 enabled("auto_tool"),
                 utilityArbiter
         );
-        autoMend.execute(client, utilityArbiter);
+        autoMend.execute(client, utilityArbiter, rotationApplier);
         fastUse.execute(client, utilityArbiter);
         autoCraft.execute(client, utilityArbiter);
     }
@@ -1318,7 +1323,7 @@ public final class ClientRuntime26 {
                 fallWaterMovement.execute(client, movementArbiter);
         elytraSwap.execute(client, movementArbiter);
         boolean elytraApplied =
-                elytraControl.execute(client, movementArbiter);
+                elytraControl.execute(client, movementArbiter, rotationApplier);
         MovementInputAutomation26.Execution input =
                 movementInput.execute(client, movementArbiter);
         boolean velocityApplied = walk.horizontal().isPresent()
@@ -1600,6 +1605,7 @@ public final class ClientRuntime26 {
     }
 
     private void releasePlatformState(Minecraft client) {
+        rotationApplier.reset();
         if (autoWalkApplied) {
             client.options.keyUp.setDown(false);
             autoWalkApplied = false;

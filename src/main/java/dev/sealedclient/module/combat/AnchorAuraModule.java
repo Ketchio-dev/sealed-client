@@ -8,6 +8,7 @@ import dev.sealedclient.core.TickableModule;
 import dev.sealedclient.core.setting.DoubleSetting;
 import dev.sealedclient.core.setting.IntegerSetting;
 import dev.sealedclient.service.ActionCoordinator;
+import dev.sealedclient.service.RotationApplier;
 import dev.sealedclient.service.FriendManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
@@ -32,6 +33,7 @@ public final class AnchorAuraModule extends Module implements TickableModule {
 
     private final FriendManager friends;
     private final ActionCoordinator actions;
+    private final RotationApplier rotations;
     private final DoubleSetting targetRange = addSetting(new DoubleSetting(
             "target_range",
             "Target range",
@@ -79,7 +81,7 @@ public final class AnchorAuraModule extends Module implements TickableModule {
     ));
     private int cooldown;
 
-    public AnchorAuraModule(FriendManager friends, ActionCoordinator actions) {
+    public AnchorAuraModule(FriendManager friends, ActionCoordinator actions, RotationApplier rotations) {
         super(
                 "anchor_aura",
                 "Anchor Aura",
@@ -90,6 +92,7 @@ public final class AnchorAuraModule extends Module implements TickableModule {
         );
         this.friends = Objects.requireNonNull(friends, "friends");
         this.actions = Objects.requireNonNull(actions, "actions");
+        this.rotations = Objects.requireNonNull(rotations, "rotations");
     }
 
     @Override
@@ -161,7 +164,7 @@ public final class AnchorAuraModule extends Module implements TickableModule {
         int previous = minecraft.player.getInventory().selected;
         minecraft.player.getInventory().setSelectedHotbarSlot(slot);
         if (actions.claim(ActionCoordinator.Channel.ROTATION, OWNER, PRIORITY, 1)) {
-            CombatUtil.rotateToward(minecraft.player, anchor.getCenter());
+            CombatUtil.rotateToward(minecraft, rotations, OWNER, PRIORITY, anchor.getCenter());
         }
         BlockHitResult hit = new BlockHitResult(
                 anchor.getCenter(),
@@ -195,7 +198,7 @@ public final class AnchorAuraModule extends Module implements TickableModule {
         int previous = minecraft.player.getInventory().selected;
         minecraft.player.getInventory().setSelectedHotbarSlot(slot);
         if (actions.claim(ActionCoordinator.Channel.ROTATION, OWNER, PRIORITY, 1)) {
-            CombatUtil.rotateToward(minecraft.player, position.getCenter());
+            CombatUtil.rotateToward(minecraft, rotations, OWNER, PRIORITY, position.getCenter());
         }
         boolean placed = CombatUtil.placeBlock(
                 minecraft,

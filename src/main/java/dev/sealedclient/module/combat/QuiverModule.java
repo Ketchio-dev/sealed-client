@@ -9,6 +9,7 @@ import dev.sealedclient.core.setting.BooleanSetting;
 import dev.sealedclient.core.setting.DoubleSetting;
 import dev.sealedclient.core.setting.IntegerSetting;
 import dev.sealedclient.service.ActionCoordinator;
+import dev.sealedclient.service.RotationApplier;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.BowItem;
@@ -21,6 +22,7 @@ public final class QuiverModule extends Module implements TickableModule {
     private static final int PRIORITY = 64;
 
     private final ActionCoordinator actions;
+    private final RotationApplier rotations;
     private final IntegerSetting drawTicks = addSetting(new IntegerSetting(
             "draw_ticks",
             "Draw ticks",
@@ -60,7 +62,7 @@ public final class QuiverModule extends Module implements TickableModule {
     private boolean started;
     private boolean fired;
 
-    public QuiverModule(ActionCoordinator actions) {
+    public QuiverModule(ActionCoordinator actions, RotationApplier rotations) {
         super(
                 "quiver",
                 "Quiver",
@@ -70,6 +72,7 @@ public final class QuiverModule extends Module implements TickableModule {
                 ModuleRisk.COMBAT
         );
         this.actions = Objects.requireNonNull(actions, "actions");
+        this.rotations = Objects.requireNonNull(rotations, "rotations");
     }
 
     @Override
@@ -100,8 +103,9 @@ public final class QuiverModule extends Module implements TickableModule {
             }
             previousSlot = minecraft.player.getInventory().selected;
             minecraft.player.getInventory().setSelectedHotbarSlot(bow);
-            minecraft.player.setYRot(minecraft.player.getYRot());
-            minecraft.player.setXRot(-90.0f);
+            // Straight up, so the arrow lands back on the player. Applied before
+            // useItem because the use packet carries the current aim.
+            rotations.request(minecraft, OWNER, PRIORITY, minecraft.player.getYRot(), -90.0f);
             if (minecraft.gameMode.useItem(
                     minecraft.player,
                     InteractionHand.MAIN_HAND
@@ -119,7 +123,7 @@ public final class QuiverModule extends Module implements TickableModule {
             return;
         }
         if (actions.claim(ActionCoordinator.Channel.ROTATION, OWNER, PRIORITY, 1)) {
-            minecraft.player.setXRot(-90.0f);
+            rotations.request(minecraft, OWNER, PRIORITY, minecraft.player.getYRot(), -90.0f);
         }
         if (minecraft.player.getTicksUsingItem() < drawTicks.get()
                 || !actions.claim(ActionCoordinator.Channel.USE, OWNER, PRIORITY, 1)) {

@@ -53,6 +53,7 @@ import dev.sealedclient.module.visual.NoViewBobModule;
 import dev.sealedclient.module.visual.VisualWorldExpansionRegistrar;
 import dev.sealedclient.render.WorldOverlayRenderer;
 import dev.sealedclient.service.ActionCoordinator;
+import dev.sealedclient.service.RotationApplier;
 import dev.sealedclient.service.FriendManager;
 import dev.sealedclient.service.WaypointManager;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
@@ -73,6 +74,7 @@ public final class ClientRuntime {
     private final WaypointManager waypointManager = new WaypointManager();
     private final EventBus eventBus = new EventBus();
     private final ActionCoordinator actionCoordinator = new ActionCoordinator();
+    private final RotationApplier rotationApplier = new RotationApplier();
     private final MovementNetworkTracker movementNetworkTracker =
             new MovementNetworkTracker();
     private final OptionalIntegrationManager integrationManager =
@@ -129,12 +131,14 @@ public final class ClientRuntime {
             configManager.save();
             moduleManager.shutdown(client);
             actionCoordinator.releaseAll(client);
+            rotationApplier.reset();
             notificationManager.clear();
             eventBus.clear();
         });
 
         ClientTickEvents.START_CLIENT_TICK.register(client -> {
             actionCoordinator.beginTick(client);
+            rotationApplier.beginTick();
             eventBus.post(new ClientTickEvent(
                     client,
                     ClientTickEvent.Phase.PRE,
@@ -161,6 +165,7 @@ public final class ClientRuntime {
             if (moduleManager.tick(client)) {
                 configManager.save();
             }
+            rotationApplier.endTick(client);
             eventBus.post(new ClientTickEvent(
                     client,
                     ClientTickEvent.Phase.POST,
@@ -180,6 +185,7 @@ public final class ClientRuntime {
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
             integrationManager.baritone().resetSession();
             actionCoordinator.releaseAll(client);
+            rotationApplier.reset();
             movementNetworkTracker.reset();
         });
 
@@ -257,7 +263,8 @@ public final class ClientRuntime {
         CombatExpansionRegistrar.register(
                 moduleManager,
                 friendManager,
-                actionCoordinator
+                actionCoordinator,
+                rotationApplier
         );
 
         moduleManager.register(new ClearWeatherModule());
@@ -277,7 +284,8 @@ public final class ClientRuntime {
                 configManager,
                 friendManager,
                 waypointManager,
-                actionCoordinator
+                actionCoordinator,
+                rotationApplier
         );
         moduleManager.register(new BaritoneNavigatorModule(integrationManager.baritone()));
 

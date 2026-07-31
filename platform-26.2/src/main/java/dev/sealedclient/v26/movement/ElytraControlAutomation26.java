@@ -1,5 +1,6 @@
 package dev.sealedclient.v26.movement;
 
+import dev.sealedclient.v26.RotationApplier26;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.phys.Vec2;
@@ -19,6 +20,9 @@ import java.util.Set;
  * after arbitration.</p>
  */
 public final class ElytraControlAutomation26 {
+    private static final String ROTATION_OWNER = "elytra_control";
+    private static final int ROTATION_PRIORITY = 40;
+
     public static final String OWNER = "elytra_control";
     public static final int PRIORITY = 60;
     public static final Configuration DEFAULT_CONFIGURATION =
@@ -166,7 +170,8 @@ public final class ElytraControlAutomation26 {
 
     public boolean execute(
             Minecraft client,
-            MovementActionArbiter26 arbiter
+            MovementActionArbiter26 arbiter,
+            RotationApplier26 rotations
     ) {
         Objects.requireNonNull(arbiter, "arbiter");
         ElytraControlDecisionEngine26.Decision decision = pending;
@@ -199,7 +204,13 @@ public final class ElytraControlAutomation26 {
             client.player.setDeltaMovement(nextX, nextY, nextZ);
         }
         if (decision.applyPitch()) {
-            client.player.setXRot(decision.nextPitchDegrees());
+            rotations.request(
+                    client,
+                    ROTATION_OWNER,
+                    ROTATION_PRIORITY,
+                    client.player.getYRot(),
+                    (float) decision.nextPitchDegrees()
+            );
         }
         engine.commit(decision, true);
         clearPreparedMetadata();

@@ -8,6 +8,7 @@ import dev.sealedclient.core.TickableModule;
 import dev.sealedclient.core.setting.DoubleSetting;
 import dev.sealedclient.core.setting.IntegerSetting;
 import dev.sealedclient.service.ActionCoordinator;
+import dev.sealedclient.service.RotationApplier;
 import dev.sealedclient.service.FriendManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
@@ -30,6 +31,7 @@ public final class PistonCrystalModule extends Module implements TickableModule 
 
     private final FriendManager friends;
     private final ActionCoordinator actions;
+    private final RotationApplier rotations;
     private final DoubleSetting targetRange = addSetting(new DoubleSetting(
             "target_range",
             "Target range",
@@ -68,7 +70,11 @@ public final class PistonCrystalModule extends Module implements TickableModule 
     ));
     private int cooldown;
 
-    public PistonCrystalModule(FriendManager friends, ActionCoordinator actions) {
+    public PistonCrystalModule(
+            FriendManager friends,
+            ActionCoordinator actions,
+            RotationApplier rotations
+    ) {
         super(
                 "piston_crystal",
                 "Piston Crystal",
@@ -79,6 +85,7 @@ public final class PistonCrystalModule extends Module implements TickableModule 
         );
         this.friends = Objects.requireNonNull(friends, "friends");
         this.actions = Objects.requireNonNull(actions, "actions");
+        this.rotations = Objects.requireNonNull(rotations, "rotations");
     }
 
     @Override
@@ -180,7 +187,7 @@ public final class PistonCrystalModule extends Module implements TickableModule 
         if (slot >= 0) {
             minecraft.player.getInventory().setSelectedHotbarSlot(slot);
         }
-        CombatUtil.rotateToward(minecraft.player, layout.base().getCenter());
+        CombatUtil.rotateToward(minecraft, rotations, OWNER, PRIORITY, layout.base().getCenter());
         BlockHitResult hit = new BlockHitResult(
                 layout.base().getCenter().add(0.0, 0.5, 0.0),
                 Direction.UP,
@@ -224,7 +231,7 @@ public final class PistonCrystalModule extends Module implements TickableModule 
                     0.0,
                     outward.getStepZ() * 4.0
             );
-            CombatUtil.rotateToward(minecraft.player, outwardLook);
+            CombatUtil.rotateToward(minecraft, rotations, OWNER, PRIORITY, outwardLook);
         }
         boolean placed = CombatUtil.placeBlock(
                 minecraft,

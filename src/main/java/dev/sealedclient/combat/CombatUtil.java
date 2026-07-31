@@ -1,6 +1,7 @@
 package dev.sealedclient.combat;
 
 import dev.sealedclient.service.FriendManager;
+import dev.sealedclient.service.RotationApplier;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
@@ -103,13 +104,27 @@ public final class CombatUtil {
         return hostiles && entity instanceof Enemy;
     }
 
-    public static void rotateToward(LocalPlayer player, Vec3 target) {
+    /**
+     * Bids to aim at {@code target} through the shared rotation arbiter.
+     *
+     * @return {@code true} if this owner won the aim for this tick
+     */
+    public static boolean rotateToward(
+            Minecraft minecraft,
+            RotationApplier rotations,
+            String owner,
+            int priority,
+            Vec3 target
+    ) {
+        LocalPlayer player = minecraft.player;
+        if (player == null) {
+            return false;
+        }
         Vec3 delta = target.subtract(player.getEyePosition());
         double horizontal = Math.sqrt(delta.x * delta.x + delta.z * delta.z);
         float yaw = (float) Math.toDegrees(Math.atan2(delta.z, delta.x)) - 90.0f;
         float pitch = (float) -Math.toDegrees(Math.atan2(delta.y, horizontal));
-        player.setYRot(yaw);
-        player.setXRot(Math.max(-90.0f, Math.min(90.0f, pitch)));
+        return rotations.request(minecraft, owner, priority, yaw, pitch);
     }
 
     public static boolean canPlaceBlock(Minecraft minecraft, BlockPos target) {

@@ -9,6 +9,7 @@ import dev.sealedclient.core.setting.BooleanSetting;
 import dev.sealedclient.core.setting.DoubleSetting;
 import dev.sealedclient.core.setting.EnumSetting;
 import dev.sealedclient.service.ActionCoordinator;
+import dev.sealedclient.service.RotationApplier;
 import dev.sealedclient.service.FriendManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.InteractionHand;
@@ -25,6 +26,7 @@ public final class KillAuraModule extends Module implements TickableModule {
 
     private final FriendManager friends;
     private final ActionCoordinator actions;
+    private final RotationApplier rotations;
     private final EnumSetting<TargetType> targets = addSetting(new EnumSetting<>(
             "targets",
             "Targets",
@@ -71,7 +73,7 @@ public final class KillAuraModule extends Module implements TickableModule {
             true
     ));
 
-    public KillAuraModule(FriendManager friends, ActionCoordinator actions) {
+    public KillAuraModule(FriendManager friends, ActionCoordinator actions, RotationApplier rotations) {
         super(
                 "kill_aura",
                 "Kill Aura",
@@ -82,6 +84,7 @@ public final class KillAuraModule extends Module implements TickableModule {
         );
         this.friends = Objects.requireNonNull(friends, "friends");
         this.actions = Objects.requireNonNull(actions, "actions");
+        this.rotations = Objects.requireNonNull(rotations, "rotations");
     }
 
     @Override
@@ -116,7 +119,7 @@ public final class KillAuraModule extends Module implements TickableModule {
         }
         if (rotate.get()
                 && actions.claim(ActionCoordinator.Channel.ROTATION, OWNER, PRIORITY, 1)) {
-            CombatUtil.rotateToward(minecraft.player, target.getEyePosition());
+            CombatUtil.rotateToward(minecraft, rotations, OWNER, PRIORITY, target.getEyePosition());
         }
         minecraft.gameMode.attack(minecraft.player, target);
         minecraft.player.swing(InteractionHand.MAIN_HAND);

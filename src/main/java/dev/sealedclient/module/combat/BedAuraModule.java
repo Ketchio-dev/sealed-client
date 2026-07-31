@@ -8,6 +8,7 @@ import dev.sealedclient.core.TickableModule;
 import dev.sealedclient.core.setting.DoubleSetting;
 import dev.sealedclient.core.setting.IntegerSetting;
 import dev.sealedclient.service.ActionCoordinator;
+import dev.sealedclient.service.RotationApplier;
 import dev.sealedclient.service.FriendManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
@@ -30,6 +31,7 @@ public final class BedAuraModule extends Module implements TickableModule {
 
     private final FriendManager friends;
     private final ActionCoordinator actions;
+    private final RotationApplier rotations;
     private final DoubleSetting targetRange = addSetting(new DoubleSetting(
             "target_range",
             "Target range",
@@ -77,7 +79,7 @@ public final class BedAuraModule extends Module implements TickableModule {
     ));
     private int cooldown;
 
-    public BedAuraModule(FriendManager friends, ActionCoordinator actions) {
+    public BedAuraModule(FriendManager friends, ActionCoordinator actions, RotationApplier rotations) {
         super(
                 "bed_aura",
                 "Bed Aura",
@@ -88,6 +90,7 @@ public final class BedAuraModule extends Module implements TickableModule {
         );
         this.friends = Objects.requireNonNull(friends, "friends");
         this.actions = Objects.requireNonNull(actions, "actions");
+        this.rotations = Objects.requireNonNull(rotations, "rotations");
     }
 
     @Override
@@ -157,7 +160,7 @@ public final class BedAuraModule extends Module implements TickableModule {
         int previous = minecraft.player.getInventory().selected;
         minecraft.player.getInventory().setSelectedHotbarSlot(slot);
         if (actions.claim(ActionCoordinator.Channel.ROTATION, OWNER, PRIORITY, 1)) {
-            CombatUtil.rotateToward(minecraft.player, bed.getCenter());
+            CombatUtil.rotateToward(minecraft, rotations, OWNER, PRIORITY, bed.getCenter());
         }
         BlockHitResult hit = new BlockHitResult(
                 bed.getCenter(),
@@ -194,7 +197,7 @@ public final class BedAuraModule extends Module implements TickableModule {
         int previous = minecraft.player.getInventory().selected;
         minecraft.player.getInventory().setSelectedHotbarSlot(slot);
         if (actions.claim(ActionCoordinator.Channel.ROTATION, OWNER, PRIORITY, 1)) {
-            CombatUtil.rotateToward(minecraft.player, position.getCenter());
+            CombatUtil.rotateToward(minecraft, rotations, OWNER, PRIORITY, position.getCenter());
         }
         boolean placed = CombatUtil.placeBlock(
                 minecraft,

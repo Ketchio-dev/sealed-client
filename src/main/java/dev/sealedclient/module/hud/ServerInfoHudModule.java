@@ -1,5 +1,6 @@
 package dev.sealedclient.module.hud;
 
+import dev.sealedclient.common.hud.QueueTextParser;
 import dev.sealedclient.core.TickableModule;
 import dev.sealedclient.hud.HudModule;
 import dev.sealedclient.hud.HudRenderContext;
@@ -10,7 +11,8 @@ import net.minecraft.world.scores.Objective;
 import net.minecraft.world.scores.PlayerScoreEntry;
 import net.minecraft.world.scores.Scoreboard;
 
-import java.util.Locale;
+import java.util.ArrayList;
+import java.util.List;
 
 public final class ServerInfoHudModule extends HudModule implements TickableModule {
     private String serverLine;
@@ -67,36 +69,14 @@ public final class ServerInfoHudModule extends HudModule implements TickableModu
         if (sidebar == null) {
             return null;
         }
-
-        String title = sidebar.getDisplayName().getString().trim();
-        boolean queueSidebar = containsQueueTerm(title);
-        String fallback = null;
+        List<String> lines = new ArrayList<>();
         for (PlayerScoreEntry entry : scoreboard.listPlayerScores(sidebar)) {
-            if (entry.isHidden()) {
-                continue;
-            }
-            String text = entry.ownerName().getString().trim();
-            if (text.isEmpty()) {
-                continue;
-            }
-            if (containsQueueTerm(text)) {
-                return "Queue: " + text;
-            }
-            if (queueSidebar && fallback == null) {
-                fallback = text;
+            if (!entry.isHidden()) {
+                lines.add(entry.ownerName().getString());
             }
         }
-
-        if (queueSidebar) {
-            return fallback == null ? "Queue: " + title : "Queue: " + fallback;
-        }
-        return null;
-    }
-
-    private static boolean containsQueueTerm(String value) {
-        String normalized = value.toLowerCase(Locale.ROOT);
-        return normalized.contains("queue")
-                || normalized.contains("position")
-                || normalized.contains("place");
+        return QueueTextParser
+                .parse(sidebar.getDisplayName().getString(), lines)
+                .orElse(null);
     }
 }

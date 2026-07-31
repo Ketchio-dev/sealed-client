@@ -236,6 +236,14 @@ GitHub Actions CI도 `.github/workflows/ci.yml`에서 양 플랫폼 단위 테�
 릴리스 전에는 위 로컬 품질 게이트와 `scripts/verify-release.sh --repeat-builds 2`를
 별도로 실행해야 합니다.
 
+연결이 예고 없이 끊기는 상황의 정리·재접속 검증. 실제 네트워크 경로를
+실행하려면 EULA 동의가 필요하며, 생략하면 스위트가 건너뛰기만 확인합니다.
+GameTest는 공개 CI 범위 밖이므로 이 게이트는 로컬에서만 보증됩니다:
+
+```shell
+./gradlew :platform-26.2:networkResilienceTest -Psealed.minecraftEula=true
+```
+
 성능 불변조건 테스트를 기본 3회 반복:
 
 ```shell

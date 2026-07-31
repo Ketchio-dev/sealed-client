@@ -7,6 +7,7 @@ import dev.sealedclient.core.TickableModule;
 import dev.sealedclient.core.setting.BooleanSetting;
 import dev.sealedclient.core.setting.IntegerSetting;
 import dev.sealedclient.service.ActionCoordinator;
+import dev.sealedclient.service.RotationApplier;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.EquipmentSlot;
@@ -62,12 +63,12 @@ public final class AutoMendModule extends Module implements TickableModule {
             true
     ));
     private final ActionCoordinator actions;
+    private final RotationApplier rotations;
     private boolean mending;
     private int previousSlot = -1;
-    private float previousPitch;
     private int cooldown;
 
-    public AutoMendModule(ActionCoordinator actions) {
+    public AutoMendModule(ActionCoordinator actions, RotationApplier rotations) {
         super(
                 "auto_mend",
                 "Auto Mend",
@@ -77,6 +78,7 @@ public final class AutoMendModule extends Module implements TickableModule {
                 ModuleRisk.AUTOMATION
         );
         this.actions = Objects.requireNonNull(actions, "actions");
+        this.rotations = Objects.requireNonNull(rotations, "rotations");
     }
 
     @Override
@@ -107,7 +109,6 @@ public final class AutoMendModule extends Module implements TickableModule {
         }
         if (!mending) {
             previousSlot = minecraft.player.getInventory().selected;
-            previousPitch = minecraft.player.getXRot();
             mending = true;
         }
         if (!actions.claim(ActionCoordinator.Channel.HOTBAR, OWNER, 50, 1)
@@ -118,7 +119,9 @@ public final class AutoMendModule extends Module implements TickableModule {
         }
 
         minecraft.player.getInventory().setSelectedHotbarSlot(bottleSlot);
-        minecraft.player.setXRot(90.0f);
+        // Straight down. Applied before useItem because the use packet carries
+        // the current aim; the applier restores the old aim once we stop.
+        rotations.request(minecraft, OWNER, 50, minecraft.player.getYRot(), 90.0f);
         if (cooldown == 0) {
             minecraft.gameMode.useItem(minecraft.player, InteractionHand.MAIN_HAND);
             cooldown = delay.get();
@@ -136,7 +139,6 @@ public final class AutoMendModule extends Module implements TickableModule {
             if (previousSlot >= 0 && previousSlot < 9) {
                 minecraft.player.getInventory().setSelectedHotbarSlot(previousSlot);
             }
-            minecraft.player.setXRot(previousPitch);
         }
         mending = false;
         previousSlot = -1;

@@ -16,6 +16,7 @@ import dev.sealedclient.core.setting.IntegerSetting;
 import dev.sealedclient.event.EventBus;
 import dev.sealedclient.event.PacketEvent;
 import dev.sealedclient.service.ActionCoordinator;
+import dev.sealedclient.service.RotationApplier;
 import dev.sealedclient.service.FriendManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
@@ -55,6 +56,7 @@ public final class AutoCrystalModule extends Module implements TickableModule {
 
     private final FriendManager friends;
     private final ActionCoordinator actions;
+    private final RotationApplier rotations;
     private final CombatTransactionEngine<Long> transaction =
             new CombatTransactionEngine<>(
                     CONFIRMATION_TIMEOUT_TICKS,
@@ -241,7 +243,7 @@ public final class AutoCrystalModule extends Module implements TickableModule {
     private long failureReleaseTick;
     private EventBus.Subscription packetSubscription;
 
-    public AutoCrystalModule(FriendManager friends, ActionCoordinator actions) {
+    public AutoCrystalModule(FriendManager friends, ActionCoordinator actions, RotationApplier rotations) {
         super(
                 "auto_crystal",
                 "Auto Crystal",
@@ -252,6 +254,7 @@ public final class AutoCrystalModule extends Module implements TickableModule {
         );
         this.friends = Objects.requireNonNull(friends, "friends");
         this.actions = Objects.requireNonNull(actions, "actions");
+        this.rotations = Objects.requireNonNull(rotations, "rotations");
     }
 
     @Override
@@ -705,7 +708,7 @@ public final class AutoCrystalModule extends Module implements TickableModule {
         }
         if (rotate.get()
                 && actions.claim(ActionCoordinator.Channel.ROTATION, OWNER, PRIORITY, 1)) {
-            CombatUtil.rotateToward(minecraft.player, crystal.position());
+            CombatUtil.rotateToward(minecraft, rotations, OWNER, PRIORITY, crystal.position());
         }
         minecraft.gameMode.attack(minecraft.player, crystal);
         minecraft.player.swing(InteractionHand.MAIN_HAND);
@@ -735,7 +738,7 @@ public final class AutoCrystalModule extends Module implements TickableModule {
             }
             if (rotate.get()
                     && actions.claim(ActionCoordinator.Channel.ROTATION, OWNER, PRIORITY, 1)) {
-                CombatUtil.rotateToward(minecraft.player, base.getCenter());
+                CombatUtil.rotateToward(minecraft, rotations, OWNER, PRIORITY, base.getCenter());
             }
             BlockHitResult hit = new BlockHitResult(
                     base.getCenter().add(0.0, 0.5, 0.0),

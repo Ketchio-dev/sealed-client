@@ -253,7 +253,7 @@ public final class HighLatencyE2ETest26 implements FabricClientGameTest {
                 new TitleScreen(),
                 client,
                 ServerAddress.parseString(address),
-                new ServerData("b2t-latency-proxy", address, ServerData.Type.OTHER),
+                new ServerData("sealed-latency-proxy", address, ServerData.Type.OTHER),
                 false,
                 null
         ));

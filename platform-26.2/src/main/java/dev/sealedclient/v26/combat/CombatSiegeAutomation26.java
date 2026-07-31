@@ -2,6 +2,7 @@ package dev.sealedclient.v26.combat;
 
 import dev.sealedclient.common.social.FriendBook;
 import dev.sealedclient.common.social.FriendEntry;
+import dev.sealedclient.v26.RotationApplier26;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.player.LocalPlayer;
@@ -47,6 +48,9 @@ import java.util.Set;
  * blocks on completion or abort when the server permits it.</p>
  */
 public final class CombatSiegeAutomation26 {
+    private static final String ROTATION_OWNER = "siege";
+    private static final int ROTATION_PRIORITY = 76;
+
     public static final String CITY_OWNER = "city_breaker.action";
     public static final String PISTON_OWNER = "piston_crystal.action";
 
@@ -299,7 +303,8 @@ public final class CombatSiegeAutomation26 {
     public void execute(
             Minecraft client,
             FriendBook friends,
-            CombatActionArbiter26 arbiter
+            CombatActionArbiter26 arbiter,
+            RotationApplier26 rotations
     ) {
         Objects.requireNonNull(arbiter, "arbiter");
         if (preparedAtTick != logicalTick || !sessionAllowsActions(client)) {
@@ -310,7 +315,7 @@ public final class CombatSiegeAutomation26 {
             if (citySession != null) {
                 stopCity(client, true);
             }
-            executePiston(client, friends, preparedPiston);
+            executePiston(client, friends, preparedPiston, rotations);
             preparedPiston = null;
             preparedCity = null;
             return;
@@ -792,7 +797,8 @@ public final class CombatSiegeAutomation26 {
     private void executePiston(
             Minecraft client,
             FriendBook friends,
-            PreparedPiston prepared
+            PreparedPiston prepared,
+            RotationApplier26 rotations
     ) {
         if (prepared.action().cleanup()) {
             executeCleanup(client, prepared);
@@ -809,7 +815,7 @@ public final class CombatSiegeAutomation26 {
             return;
         }
         boolean sent = switch (prepared.action()) {
-            case PLACE_PISTON -> placePiston(client);
+            case PLACE_PISTON -> placePiston(client, rotations);
             case PLACE_CRYSTAL -> placeCrystal(client);
             case PLACE_POWER -> placePower(client);
             case BREAK_CRYSTAL -> breakCrystal(client);
@@ -1129,7 +1135,7 @@ public final class CombatSiegeAutomation26 {
         );
     }
 
-    private boolean placePiston(Minecraft client) {
+    private boolean placePiston(Minecraft client, RotationApplier26 rotations) {
         int slot = findHotbarSlot(
                 client.player,
                 Items.PISTON,
@@ -1145,7 +1151,7 @@ public final class CombatSiegeAutomation26 {
         Direction serverLook = pistonRun.facing.getOpposite();
         try {
             client.player.getInventory().setSelectedSlot(slot);
-            sendRotation(client, serverLook.toYRot(), 0.0F);
+            sendRotation(client, rotations, serverLook.toYRot(), 0.0F);
             BlockPos support = pistonRun.piston.below();
             return useOn(
                     client,
@@ -1161,7 +1167,7 @@ public final class CombatSiegeAutomation26 {
         } catch (RuntimeException ignored) {
             return false;
         } finally {
-            sendRotation(client, previousYaw, previousPitch);
+            sendRotation(client, rotations, previousYaw, previousPitch);
             client.player.setYHeadRot(previousHead);
             restoreTemporarySlot(client.player, previousSlot, slot);
         }
@@ -1260,15 +1266,19 @@ public final class CombatSiegeAutomation26 {
 
     private static void sendRotation(
             Minecraft client,
+            RotationApplier26 rotations,
             float yaw,
             float pitch
     ) {
-        client.player.setYRot(yaw);
-        client.player.setXRot(pitch);
-        client.player.setYHeadRot(yaw);
+        if (!rotations.request(client, ROTATION_OWNER, ROTATION_PRIORITY, yaw, pitch)) {
+            return;
+        }
+        float appliedYaw = rotations.appliedYaw();
+        float appliedPitch = rotations.appliedPitch();
+        client.player.setYHeadRot(appliedYaw);
         client.getConnection().send(new ServerboundMovePlayerPacket.Rot(
-                yaw,
-                pitch,
+                appliedYaw,
+                appliedPitch,
                 client.player.onGround(),
                 client.player.horizontalCollision
         ));

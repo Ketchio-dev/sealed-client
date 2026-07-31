@@ -9,6 +9,8 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -37,6 +39,8 @@ public final class LatencyProxy26 implements AutoCloseable {
     private final long delayMillis;
     private final AtomicBoolean running = new AtomicBoolean(true);
     private final AtomicLong forwardedBytes = new AtomicLong();
+    private final List<Socket> live = new CopyOnWriteArrayList<>();
+    private final AtomicLong droppedSessions = new AtomicLong();
     private final Thread acceptor;
 
     private LatencyProxy26(
@@ -49,7 +53,7 @@ public final class LatencyProxy26 implements AutoCloseable {
         this.targetHost = targetHost;
         this.targetPort = targetPort;
         this.delayMillis = delayMillis;
-        this.acceptor = new Thread(this::acceptLoop, "b2t-latency-proxy");
+        this.acceptor = new Thread(this::acceptLoop, "sealed-latency-proxy");
         this.acceptor.setDaemon(true);
         this.acceptor.start();
     }
@@ -83,6 +87,33 @@ public final class LatencyProxy26 implements AutoCloseable {
         return forwardedBytes.get();
     }
 
+    /**
+     * Severs every connection currently running through the proxy, as an
+     * unannounced network drop would, while leaving the listener open so the
+     * client can reconnect to the same address.
+     *
+     * @return the number of sockets that were closed
+     */
+    public int dropConnections() {
+        int closed = 0;
+        for (Socket socket : live) {
+            if (!socket.isClosed()) {
+                closeQuietly(socket);
+                closed++;
+            }
+        }
+        live.clear();
+        if (closed > 0) {
+            droppedSessions.incrementAndGet();
+        }
+        return closed;
+    }
+
+    /** How many times {@link #dropConnections()} actually severed a session. */
+    public long droppedSessions() {
+        return droppedSessions.get();
+    }
+
     private void acceptLoop() {
         while (running.get()) {
             Socket downstream = null;
@@ -92,6 +123,8 @@ public final class LatencyProxy26 implements AutoCloseable {
                 upstream = new Socket(targetHost, targetPort);
                 downstream.setTcpNoDelay(true);
                 upstream.setTcpNoDelay(true);
+                live.add(downstream);
+                live.add(upstream);
                 pump(downstream, upstream);
                 pump(upstream, downstream);
             } catch (IOException exception) {
@@ -141,10 +174,12 @@ public final class LatencyProxy26 implements AutoCloseable {
                 // Either side closing ends this direction; the peer thread and
                 // the accept loop handle their own teardown.
             } finally {
+                live.remove(from);
+                live.remove(to);
                 closeQuietly(from);
                 closeQuietly(to);
             }
-        }, "b2t-latency-pump");
+        }, "sealed-latency-pump");
         worker.setDaemon(true);
         worker.start();
     }
@@ -173,6 +208,7 @@ public final class LatencyProxy26 implements AutoCloseable {
     @Override
     public void close() {
         running.set(false);
+        dropConnections();
         try {
             listener.close();
         } catch (IOException ignored) {

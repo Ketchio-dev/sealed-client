@@ -1,5 +1,6 @@
 package dev.sealedclient.v26.combat;
 
+import dev.sealedclient.v26.RotationApplier26;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.Holder;
@@ -36,6 +37,9 @@ import java.util.Set;
  * blindly repeat an unconfirmed shot.</p>
  */
 public final class CombatQuiverAutomation26 {
+    private static final String ROTATION_OWNER = "quiver";
+    private static final int ROTATION_PRIORITY = 64;
+
     public static final Configuration DEFAULT_CONFIGURATION =
             new Configuration(
                     20,
@@ -159,7 +163,8 @@ public final class CombatQuiverAutomation26 {
      */
     public boolean execute(
             Minecraft client,
-            CombatActionArbiter26 arbiter
+            CombatActionArbiter26 arbiter,
+            RotationApplier26 rotations
     ) {
         Objects.requireNonNull(arbiter, "arbiter");
         PreparedQuiver prepared = pending;
@@ -171,7 +176,8 @@ public final class CombatQuiverAutomation26 {
         }
 
         // Minecraft pitch -90 is straight upward.
-        client.player.setXRot(-90.0F);
+        rotations.request(client, ROTATION_OWNER, ROTATION_PRIORITY,
+                client.player.getYRot(), -90.0F);
         if (prepared.action() == QuiverAction.AIM) {
             lastAimTick = client.player.tickCount;
             lastAimSlot = prepared.selectedSlot();

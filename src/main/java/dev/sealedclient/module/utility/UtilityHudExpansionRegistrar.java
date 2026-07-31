@@ -8,6 +8,7 @@ import dev.sealedclient.module.hud.TargetHudModule;
 import dev.sealedclient.module.hud.TickRateHudModule;
 import dev.sealedclient.module.hud.TotemPopHudModule;
 import dev.sealedclient.service.ActionCoordinator;
+import dev.sealedclient.service.RotationApplier;
 import dev.sealedclient.service.FriendManager;
 import dev.sealedclient.service.WaypointManager;
 
@@ -27,13 +28,15 @@ public final class UtilityHudExpansionRegistrar {
             ConfigManager config,
             FriendManager friends,
             WaypointManager waypoints,
-            ActionCoordinator actions
+            ActionCoordinator actions,
+            RotationApplier rotations
     ) {
         Objects.requireNonNull(modules, "modules");
         Objects.requireNonNull(config, "config");
         Objects.requireNonNull(friends, "friends");
         Objects.requireNonNull(waypoints, "waypoints");
         Objects.requireNonNull(actions, "actions");
+        Objects.requireNonNull(rotations, "rotations");
 
         modules.register(new ArrayListHudModule(modules));
         modules.register(new TickRateHudModule());
@@ -46,7 +49,7 @@ public final class UtilityHudExpansionRegistrar {
         modules.register(new AutoReconnectModule(actions));
         modules.register(new AntiAfkModule(actions));
         modules.register(new ChestSwapModule(actions));
-        modules.register(new AutoMendModule(actions));
+        modules.register(new AutoMendModule(actions, rotations));
         modules.register(new FastUseModule(actions));
         modules.register(new InventoryManagerModule(actions));
         modules.register(new AutoCraftModule(actions));

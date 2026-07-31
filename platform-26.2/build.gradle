@@ -93,6 +93,20 @@ tasks.named("runClientGameTest") {
     }
 }
 
+tasks.register("networkResilienceTest") {
+    group = "verification"
+    description = "Runs the 26.2 client game tests including the dropped-connection " +
+            "resilience suite. Requires -Psealed.minecraftEula=true to exercise the " +
+            "real network paths; without it the network suites log a skip."
+    dependsOn tasks.named("runClientGameTest")
+    doFirst {
+        if (!minecraftEulaAccepted) {
+            logger.warn("networkResilienceTest without -Psealed.minecraftEula=true only "
+                    + "verifies that the suites load and skip cleanly.")
+        }
+    }
+}
+
 tasks.named("jar", Jar) {
     from(project(":common").sourceSets.main.output)
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE

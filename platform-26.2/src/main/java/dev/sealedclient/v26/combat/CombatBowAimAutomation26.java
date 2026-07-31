@@ -1,5 +1,6 @@
 package dev.sealedclient.v26.combat;
 
+import dev.sealedclient.v26.RotationApplier26;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.player.LocalPlayer;
@@ -25,6 +26,9 @@ import java.util.UUID;
  * suppressed briefly when a manual rotation is observed while drawing.</p>
  */
 public final class CombatBowAimAutomation26 {
+    private static final String ROTATION_OWNER = "bow_aim";
+    private static final int ROTATION_PRIORITY = 58;
+
     public static final Configuration DEFAULT_CONFIGURATION =
             new Configuration(
                     48.0,
@@ -153,7 +157,8 @@ public final class CombatBowAimAutomation26 {
      */
     public boolean execute(
             Minecraft client,
-            CombatActionArbiter26 arbiter
+            CombatActionArbiter26 arbiter,
+            RotationApplier26 rotations
     ) {
         Objects.requireNonNull(arbiter, "arbiter");
         PreparedAim prepared = pending;
@@ -190,8 +195,11 @@ public final class CombatBowAimAutomation26 {
 
         float yaw = (float) prepared.solution().appliedYaw();
         float pitch = (float) prepared.solution().appliedPitch();
-        client.player.setYRot(yaw);
-        client.player.setXRot(pitch);
+        if (!rotations.request(client, ROTATION_OWNER, ROTATION_PRIORITY, yaw, pitch)) {
+            return false;
+        }
+        yaw = rotations.appliedYaw();
+        pitch = rotations.appliedPitch();
         sampledTick = client.player.tickCount;
         sampledYaw = yaw;
         sampledPitch = pitch;
