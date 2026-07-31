@@ -288,39 +288,16 @@ public final class CombatActionArbiter26 {
     }
 
     private static String requireOwner(String owner) {
-        if (owner == null || owner.isBlank()) {
-            throw new IllegalArgumentException("Combat action owner cannot be blank");
-        }
-        String canonical = owner.trim();
-        if (canonical.length() > ActionArbiter.MAXIMUM_OWNER_LENGTH) {
-            throw new IllegalArgumentException(
-                    "Combat action owner cannot exceed "
-                            + ActionArbiter.MAXIMUM_OWNER_LENGTH + " characters"
-            );
-        }
-        return canonical;
+        return ActionArbiter.requireOwner(owner, "Combat");
     }
 
     private static Set<Channel> immutableChannels(Set<Channel> channels) {
-        Objects.requireNonNull(channels, "channels");
-        if (channels.isEmpty()) {
-            throw new IllegalArgumentException(
-                    "Combat action requires at least one channel"
-            );
-        }
-        java.util.EnumSet<Channel> copy = java.util.EnumSet.noneOf(Channel.class);
-        for (Channel channel : channels) {
-            copy.add(Objects.requireNonNull(channel, "channel"));
-        }
-        return Collections.unmodifiableSet(copy);
+        return ActionArbiter.copyChannels(channels, Channel.class, "Combat", false);
     }
 
     private static Map<Channel, Grant> immutableGrantMap(
             Map<Channel, Grant> source
     ) {
-        Objects.requireNonNull(source, "channelGrants");
-        EnumMap<Channel, Grant> copy = new EnumMap<>(Channel.class);
-        copy.putAll(source);
-        return Collections.unmodifiableMap(copy);
+        return ActionArbiter.copyGrants(source, Channel.class);
     }
 }

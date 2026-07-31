@@ -4,7 +4,6 @@ import dev.sealedclient.common.arbitration.ActionArbiter;
 
 import java.util.Collections;
 import java.util.EnumMap;
-import java.util.EnumSet;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -259,43 +258,19 @@ public final class UtilityActionArbiter26 {
     }
 
     private static String requireOwner(String owner) {
-        if (owner == null || owner.isBlank()) {
-            throw new IllegalArgumentException(
-                    "Utility action owner cannot be blank"
-            );
-        }
-        String canonical = owner.trim();
-        if (canonical.length() > MAXIMUM_OWNER_LENGTH) {
-            throw new IllegalArgumentException(
-                    "Utility action owner cannot exceed "
-                            + MAXIMUM_OWNER_LENGTH + " characters"
-            );
-        }
-        return canonical;
+        return ActionArbiter.requireOwner(owner, "Utility");
     }
 
     private static Set<Channel> immutableChannels(
             Set<Channel> channels,
             boolean allowEmpty
     ) {
-        Objects.requireNonNull(channels, "channels");
-        if (!allowEmpty && channels.isEmpty()) {
-            throw new IllegalArgumentException(
-                    "Utility action requires at least one channel"
-            );
-        }
-        EnumSet<Channel> copy = EnumSet.noneOf(Channel.class);
-        for (Channel channel : channels) {
-            copy.add(Objects.requireNonNull(channel, "channel"));
-        }
-        return Collections.unmodifiableSet(copy);
+        return ActionArbiter.copyChannels(channels, Channel.class, "Utility", allowEmpty);
     }
 
     private static Map<Channel, Grant> immutableGrantMap(
             Map<Channel, Grant> source
     ) {
-        EnumMap<Channel, Grant> copy = new EnumMap<>(Channel.class);
-        copy.putAll(Objects.requireNonNull(source, "channelGrants"));
-        return Collections.unmodifiableMap(copy);
+        return ActionArbiter.copyGrants(source, Channel.class);
     }
 }

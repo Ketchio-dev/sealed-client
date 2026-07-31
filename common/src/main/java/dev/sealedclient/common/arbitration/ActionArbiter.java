@@ -229,6 +229,24 @@ public final class ActionArbiter<C extends Enum<C>> {
     }
 
     private String requireOwner(String owner) {
+        return requireOwner(owner, label);
+    }
+
+    private Set<C> copyChannels(Set<C> channels, boolean allowEmpty) {
+        return copyChannels(channels, channelType, label, allowEmpty);
+    }
+
+    /**
+     * Validates and canonicalises an owner identifier.
+     *
+     * <p>Exposed because the per-subsystem wrappers keep their own public
+     * records, and those records validate their inputs the same way. Sharing
+     * this keeps one definition of what a legal owner is instead of three
+     * copies that can drift apart.</p>
+     *
+     * @param label human-readable subsystem name used in error messages
+     */
+    public static String requireOwner(String owner, String label) {
         if (owner == null || owner.isBlank()) {
             throw new IllegalArgumentException(label + " action owner cannot be blank");
         }
@@ -242,7 +260,13 @@ public final class ActionArbiter<C extends Enum<C>> {
         return canonical;
     }
 
-    private Set<C> copyChannels(Set<C> channels, boolean allowEmpty) {
+    /** Defensive immutable copy of a channel set, rejecting nulls. */
+    public static <C extends Enum<C>> Set<C> copyChannels(
+            Set<C> channels,
+            Class<C> channelType,
+            String label,
+            boolean allowEmpty
+    ) {
         Objects.requireNonNull(channels, "channels");
         if (!allowEmpty && channels.isEmpty()) {
             throw new IllegalArgumentException(
@@ -254,6 +278,16 @@ public final class ActionArbiter<C extends Enum<C>> {
             copy.add(Objects.requireNonNull(channel, "channel"));
         }
         return Collections.unmodifiableSet(copy);
+    }
+
+    /** Defensive immutable copy of a per-channel grant map. */
+    public static <C extends Enum<C>, G> Map<C, G> copyGrants(
+            Map<C, G> source,
+            Class<C> channelType
+    ) {
+        EnumMap<C, G> copy = new EnumMap<>(channelType);
+        copy.putAll(Objects.requireNonNull(source, "channelGrants"));
+        return Collections.unmodifiableMap(copy);
     }
 
     private record Request<C extends Enum<C>>(String owner, int priority, Set<C> channels) {
