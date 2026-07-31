@@ -1,4 +1,4 @@
-# Sealed Client 3.3.1
+# Sealed Client 1.0.0
 
 [CI workflow](.github/workflows/ci.yml)
 
@@ -21,6 +21,43 @@ Nami를 비롯한 다른 클라이언트의 소스, 바이너리, 리소스는 �
 - Utility/Baritone 8개: Auto Armor, Replenish, Chest Swap, Auto Mend,
   Fast Use, Inventory Manager, Auto Craft, Baritone Navigator
 - HUD 2개: Tick Rate, Totem Pop (Local)
+
+### 다른 버전은 어떻게 되나
+
+지원 버전을 늘리는 비용을 추정하지 않고 측정했습니다. 1.21.4 소스를 그대로
+1.21.8에 컴파일해 컴파일러가 센 값입니다.
+
+| 시점 | 오류 | 영향 파일 |
+| --- | --- | --- |
+| 어댑터 도입 전 | 101 | 27 / 157 |
+| 어댑터 도입 후 | 54 | 4 |
+
+줄어든 47개는 전부 이름이 바뀐 것이었습니다. 핫바 슬롯, 이동 입력, 무기·곡괭이
+판정, 저항 효과, 갑옷 슬롯, 순간이동이 그렇습니다. 이제 이런 접근은
+`dev.sealedclient.platform`의 어댑터 4개(181줄)를 통해서만 이뤄지며, 소스 검사
+테스트가 새 호출부의 우회를 막습니다.
+
+남은 54개의 성격은 두 가지입니다.
+
+- **44개 — 렌더 파이프라인.** `RenderSystem`의 상태 메서드가 삭제되고
+  `RenderPipeline`으로 옮겨졌습니다. 이름 변경이 아니라 렌더 상태를 기술하는
+  방식이 바뀐 것이라 실제 이식이 필요합니다. 26.2에서 같은 작업에 894줄이
+  들었습니다. **1.21.4의 렌더 결과를 CI에서 검증할 수단이 없으므로**, 회귀를
+  자동으로 잡지 못하는 상태에서 착수하지 않습니다.
+- **9개 — 어댑터 파일 내부.** 이 숫자는 0이 될 수 없습니다. 결국 누군가는 실제
+  API를 호출해야 하며, 그 지점이 3개 파일 9줄로 모였다는 것이 어댑터의 목적입니다.
+
+따라서 1.0은 **1.21.4와 26.2 두 버전을 지원한다**고만 약속합니다. 다른 버전은
+"곧 지원"이 아니라 위 표의 숫자만큼 남아 있는 상태입니다.
+
+### 1.0이 약속하는 것
+
+- 위 표의 두 버전에서 90개 모듈이 동작합니다.
+- 설정 파일 형식과 명령 이름은 1.x 안에서 깨지 않습니다. 부득이하면 자동
+  마이그레이션을 넣고 CHANGELOG에 적습니다.
+- 측정으로 확인한 수치만 문서에 남깁니다. 확인하지 못한 설명은 가설이라고
+  명시하며, 관용치에 조용히 흡수하지 않습니다.
+- 외부 통신, 원격 측정, 런처 토큰 접근은 넣지 않습니다.
 
 ViaFabricPlus와 Sodium은 설치 여부만 감지합니다. 1.21.4의 Baritone 연동은
 별도로 설치한 공식 Baritone 1.13.1 API를 통해 좌표·웨이포인트 길찾기,
@@ -57,8 +94,8 @@ Sealed Client는 이 위험을 줄이기 위해 다음 경계를 둡니다.
 
 1. 사용할 Minecraft 버전에 맞는 Fabric Loader와 Fabric API를 설치합니다.
 2. 같은 버전의 Sealed Client JAR 하나만 `mods` 폴더에 넣습니다.
-   - 1.21.4: `sealed-client-mc1.21.4-3.0.0.jar`
-   - 26.2: `sealed-client-mc26.2-3.0.0.jar`
+   - 1.21.4: `sealed-client-mc1.21.4-1.0.0.jar`
+   - 26.2: `sealed-client-mc26.2-1.0.0.jar`
 3. 게임에서 `P`를 눌러 ClickGUI를 엽니다.
 
 1.21.4 주요 조작:
@@ -370,12 +407,12 @@ scripts/verify-release.sh
 
 `build/multiversion-release/`에는 다음 파일이 생성됩니다.
 
-- `sealed-client-mc1.21.4-3.0.0.jar`
-- `sealed-client-mc1.21.4-3.0.0-sources.jar`
-- `sealed-client-mc26.2-3.0.0.jar`
-- `sealed-client-mc26.2-3.0.0-sources.jar`
-- `sealed-client-3.0.0.sbom.json`
-- `sealed-client-26.2-3.0.0-bom.json`
+- `sealed-client-mc1.21.4-1.0.0.jar`
+- `sealed-client-mc1.21.4-1.0.0-sources.jar`
+- `sealed-client-mc26.2-1.0.0.jar`
+- `sealed-client-mc26.2-1.0.0-sources.jar`
+- `sealed-client-1.0.0.sbom.json`
+- `sealed-client-26.2-1.0.0-bom.json`
 - 통합 `SHA256SUMS`와 플랫폼별 체크섬 목록
 - `SECURITY.md`, `NOTICE`
 
