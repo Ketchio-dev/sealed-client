@@ -93,6 +93,20 @@ tasks.named("runClientGameTest") {
     }
 }
 
+tasks.register("combatAccuracyTest") {
+    group = "verification"
+    description = "Runs the 26.2 client game tests including the explosion-damage " +
+            "accuracy and reaction-latency suites. Requires -Psealed.minecraftEula=true " +
+            "to detonate real crystals against a real server; without it they skip."
+    dependsOn tasks.named("runClientGameTest")
+    doFirst {
+        if (!minecraftEulaAccepted) {
+            logger.warn("combatAccuracyTest without -Psealed.minecraftEula=true only "
+                    + "verifies that the suites load and skip cleanly.")
+        }
+    }
+}
+
 tasks.register("networkResilienceTest") {
     group = "verification"
     description = "Runs the 26.2 client game tests including the dropped-connection " +

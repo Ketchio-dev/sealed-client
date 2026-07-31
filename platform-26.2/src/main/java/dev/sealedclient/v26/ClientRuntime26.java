@@ -1,6 +1,7 @@
 package dev.sealedclient.v26;
 
 import com.mojang.blaze3d.platform.InputConstants;
+import dev.sealedclient.common.arbitration.CrossArbiterReservations;
 import dev.sealedclient.common.module.ModuleKeybindDispatcher;
 import dev.sealedclient.common.module.ModuleRegistry;
 import dev.sealedclient.common.module.RegisteredModule;
@@ -86,6 +87,12 @@ import java.util.function.Consumer;
 
 public final class ClientRuntime26 {
     private static final DateTimeFormatter DEATH_ID = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss");
+    /**
+     * Channel names that mean the same physical resource in every subsystem.
+     * A combat or movement grant on one of these blocks utility for the tick.
+     */
+    private static final Set<String> SHARED_UTILITY_CHANNEL_NAMES =
+            Set.of("USE", "HOTBAR", "INVENTORY", "ROTATION");
     private static final String COMBAT_ATTACK_OWNER = "combat_attack";
     private static final int COMBAT_ATTACK_PRIORITY = 70;
     private static final Set<CombatActionArbiter26.Channel> ATTACK_CHANNEL =
@@ -1165,44 +1172,24 @@ public final class ClientRuntime26 {
         );
     }
 
+    /**
+     * Tells the utility arbiter which channels combat or movement already took.
+     *
+     * <p>The three arbiters are independent, but there is only one hotbar, one
+     * inventory and one head. Utility resolves last, so whatever the other two
+     * committed this tick has to be handed to it as an external reservation.
+     * The rules themselves live in {@link CrossArbiterReservations} so they can
+     * be tested without a client.</p>
+     */
     private Set<UtilityActionArbiter26.Channel>
             externalUtilityReservations() {
-        EnumSet<UtilityActionArbiter26.Channel> reserved =
-                EnumSet.noneOf(UtilityActionArbiter26.Channel.class);
-        if (baritoneOwnsMovement()) {
-            reserved.addAll(EnumSet.allOf(
-                    UtilityActionArbiter26.Channel.class
-            ));
-        }
-        if (combatOwns(CombatActionArbiter26.Channel.USE)) {
-            reserved.add(UtilityActionArbiter26.Channel.USE);
-        }
-        if (combatOwns(CombatActionArbiter26.Channel.HOTBAR)) {
-            reserved.add(UtilityActionArbiter26.Channel.HOTBAR);
-        }
-        if (combatOwns(CombatActionArbiter26.Channel.INVENTORY)) {
-            reserved.add(UtilityActionArbiter26.Channel.INVENTORY);
-        }
-        if (combatOwns(CombatActionArbiter26.Channel.ROTATION)) {
-            reserved.add(UtilityActionArbiter26.Channel.ROTATION);
-        }
-        var movementGrants = movementArbiter.snapshot().channelGrants();
-        if (movementGrants.containsKey(
-                MovementActionArbiter26.Channel.HOTBAR
-        )) {
-            reserved.add(UtilityActionArbiter26.Channel.HOTBAR);
-        }
-        if (movementGrants.containsKey(
-                MovementActionArbiter26.Channel.INVENTORY
-        )) {
-            reserved.add(UtilityActionArbiter26.Channel.INVENTORY);
-        }
-        if (movementGrants.containsKey(
-                MovementActionArbiter26.Channel.ROTATION
-        )) {
-            reserved.add(UtilityActionArbiter26.Channel.ROTATION);
-        }
-        return Set.copyOf(reserved);
+        return CrossArbiterReservations.compute(
+                UtilityActionArbiter26.Channel.class,
+                combatArbiter.snapshot().channelGrants().keySet(),
+                movementArbiter.snapshot().channelGrants().keySet(),
+                SHARED_UTILITY_CHANNEL_NAMES,
+                baritoneOwnsMovement()
+        );
     }
 
     private void tickMovement(Minecraft client) {

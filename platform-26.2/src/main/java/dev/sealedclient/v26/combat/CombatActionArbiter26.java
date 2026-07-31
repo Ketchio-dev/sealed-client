@@ -1,9 +1,9 @@
 package dev.sealedclient.v26.combat;
 
+import dev.sealedclient.common.arbitration.ActionArbiter;
+
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.EnumMap;
-import java.util.EnumSet;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -26,22 +26,15 @@ import java.util.TreeMap;
  * action identifiers such as {@code auto_crystal.break} and
  * {@code auto_crystal.place}.</p>
  *
- * <p>This class deliberately has no Minecraft dependencies. The platform
- * runtime owns the mapping from live client state to {@link SafetyContext} and
- * applies packets, keys, rotations, inventory clicks, and slot changes only
- * after resolution.</p>
+ * <p>The arbitration itself lives in {@link ActionArbiter}; this class binds it
+ * to the combat channel set and keeps the combat-specific safety vocabulary.
+ * It deliberately has no Minecraft dependencies: the platform runtime owns the
+ * mapping from live client state to {@link SafetyContext} and applies packets,
+ * keys, rotations, inventory clicks, and slot changes only after resolution.</p>
  */
 public final class CombatActionArbiter26 {
-    private static final Comparator<Request> REQUEST_ORDER =
-            Comparator.comparingInt(Request::priority)
-                    .reversed()
-                    .thenComparing(Request::owner);
-
-    private final Map<String, Request> requests = new TreeMap<>();
-    private final Map<Channel, Grant> grants = new EnumMap<>(Channel.class);
-    private final Map<String, Decision> decisions = new TreeMap<>();
-    private long tick;
-    private Phase phase = Phase.IDLE;
+    private final ActionArbiter<Channel> arbiter =
+            new ActionArbiter<>(Channel.class, "Combat");
     private SafetyBlock safetyBlock = SafetyBlock.NONE;
 
     /**
@@ -51,15 +44,9 @@ public final class CombatActionArbiter26 {
      * immediately closes the tick without granting any action.</p>
      */
     public void beginTick(SafetyContext context) {
-        SafetyContext requestedContext = Objects.requireNonNull(context, "context");
-        tick++;
-        requests.clear();
-        grants.clear();
-        decisions.clear();
-        safetyBlock = requestedContext.block();
-        phase = safetyBlock == SafetyBlock.NONE
-                ? Phase.COLLECTING
-                : Phase.RESOLVED;
+        Objects.requireNonNull(context, "context");
+        safetyBlock = context.block();
+        arbiter.beginTick(safetyBlock != SafetyBlock.NONE, Set.of());
     }
 
     /**
@@ -70,66 +57,23 @@ public final class CombatActionArbiter26 {
      * @throws IllegalStateException when called before {@link #beginTick} or
      *         after a ready tick has already been resolved
      */
-    public boolean submit(
-            String owner,
-            int priority,
-            Set<Channel> channels
-    ) {
-        String requestedOwner = requireOwner(owner);
-        Set<Channel> requestedChannels = immutableChannels(channels);
-        if (safetyBlock != SafetyBlock.NONE) {
-            return false;
-        }
-        requirePhase(Phase.COLLECTING, "submit");
-        if (requests.containsKey(requestedOwner)) {
-            return false;
-        }
-        Request request = new Request(
-                requestedOwner,
-                priority,
-                requestedChannels
-        );
-        requests.put(requestedOwner, request);
-        decisions.put(requestedOwner, Decision.pending(request));
-        return true;
+    public boolean submit(String owner, int priority, Set<Channel> channels) {
+        return arbiter.submit(owner, priority, channels);
     }
 
     /**
      * Resolves every collected bundle exactly once.
      */
     public void resolve() {
-        if (safetyBlock != SafetyBlock.NONE) {
-            return;
-        }
-        requirePhase(Phase.COLLECTING, "resolve");
-        requests.values().stream()
-                .sorted(REQUEST_ORDER)
-                .forEach(this::resolveRequest);
-        phase = Phase.RESOLVED;
+        arbiter.resolve();
     }
 
     public boolean owns(String owner, Channel channel) {
-        String requestedOwner = requireOwner(owner);
-        Channel requestedChannel = Objects.requireNonNull(channel, "channel");
-        if (phase != Phase.RESOLVED || safetyBlock != SafetyBlock.NONE) {
-            return false;
-        }
-        Grant grant = grants.get(requestedChannel);
-        return grant != null && grant.owner().equals(requestedOwner);
+        return arbiter.owns(owner, channel);
     }
 
     public boolean ownsAll(String owner, Set<Channel> channels) {
-        String requestedOwner = requireOwner(owner);
-        Set<Channel> requestedChannels = immutableChannels(channels);
-        if (phase != Phase.RESOLVED || safetyBlock != SafetyBlock.NONE) {
-            return false;
-        }
-        return requestedChannels.stream()
-                .allMatch(channel -> {
-                    Grant grant = grants.get(channel);
-                    return grant != null
-                            && grant.owner().equals(requestedOwner);
-                });
+        return arbiter.ownsAll(owner, channels);
     }
 
     /**
@@ -139,10 +83,9 @@ public final class CombatActionArbiter26 {
      * the block even though no request was accepted.</p>
      */
     public Decision decision(String owner) {
-        String requestedOwner = requireOwner(owner);
-        Decision decision = decisions.get(requestedOwner);
+        ActionArbiter.Decision<Channel> decision = arbiter.decision(owner);
         if (decision != null) {
-            return decision;
+            return Decision.of(decision);
         }
         if (safetyBlock != SafetyBlock.NONE) {
             return Decision.safetyBlocked(safetyBlock);
@@ -159,121 +102,37 @@ public final class CombatActionArbiter26 {
      * denial.</p>
      */
     public void releaseOwner(String owner) {
-        String requestedOwner = requireOwner(owner);
-        Request request = requests.remove(requestedOwner);
-        grants.entrySet().removeIf(entry ->
-                entry.getValue().owner().equals(requestedOwner)
-        );
-        Decision previous = decisions.get(requestedOwner);
-        if (previous != null || request != null) {
-            Decision basis = previous != null
-                    ? previous
-                    : Decision.pending(request);
-            decisions.put(requestedOwner, basis.released());
-        }
+        arbiter.releaseOwner(owner);
     }
 
     /**
      * Cancels every pending and resolved action until the next tick.
      */
     public void releaseAll() {
-        decisions.replaceAll((owner, decision) -> decision.released());
-        requests.clear();
-        grants.clear();
-        if (phase != Phase.IDLE) {
-            phase = Phase.RESOLVED;
-        }
+        arbiter.releaseAll();
     }
 
     public Snapshot snapshot() {
+        Map<Channel, Grant> channelGrants = new EnumMap<>(Channel.class);
+        arbiter.grants().forEach((channel, grant) ->
+                channelGrants.put(channel, new Grant(grant.owner(), grant.priority()))
+        );
+        Map<String, Decision> decisions = new TreeMap<>();
+        arbiter.decisions().forEach((owner, decision) ->
+                decisions.put(owner, Decision.of(decision))
+        );
         return new Snapshot(
-                tick,
-                phase,
+                arbiter.tick(),
+                Phase.valueOf(arbiter.phase().name()),
                 safetyBlock,
-                immutableGrantMap(grants),
-                Collections.unmodifiableMap(new TreeMap<>(decisions)),
-                decisions.size()
+                channelGrants,
+                decisions,
+                arbiter.submittedCount()
         );
     }
 
     public long tick() {
-        return tick;
-    }
-
-    private void resolveRequest(Request request) {
-        Map<Channel, String> blockers = new EnumMap<>(Channel.class);
-        for (Channel channel : request.channels()) {
-            Grant grant = grants.get(channel);
-            if (grant != null) {
-                blockers.put(channel, grant.owner());
-            }
-        }
-        if (!blockers.isEmpty()) {
-            decisions.put(
-                    request.owner(),
-                    Decision.denied(request, blockers)
-            );
-            return;
-        }
-        for (Channel channel : request.channels()) {
-            grants.put(
-                    channel,
-                    new Grant(request.owner(), request.priority())
-            );
-        }
-        decisions.put(request.owner(), Decision.granted(request));
-    }
-
-    private void requirePhase(Phase required, String operation) {
-        if (phase != required) {
-            throw new IllegalStateException(
-                    operation + " requires " + required
-                            + " phase, current phase is " + phase
-            );
-        }
-    }
-
-    private static String requireOwner(String owner) {
-        if (owner == null || owner.isBlank()) {
-            throw new IllegalArgumentException("Combat action owner cannot be blank");
-        }
-        String canonical = owner.trim();
-        if (canonical.length() > 96) {
-            throw new IllegalArgumentException(
-                    "Combat action owner cannot exceed 96 characters"
-            );
-        }
-        return canonical;
-    }
-
-    private static Set<Channel> immutableChannels(Set<Channel> channels) {
-        Objects.requireNonNull(channels, "channels");
-        if (channels.isEmpty()) {
-            throw new IllegalArgumentException(
-                    "Combat action requires at least one channel"
-            );
-        }
-        EnumSet<Channel> copy = EnumSet.noneOf(Channel.class);
-        for (Channel channel : channels) {
-            copy.add(Objects.requireNonNull(channel, "channel"));
-        }
-        return Collections.unmodifiableSet(copy);
-    }
-
-    private static Map<Channel, Grant> immutableGrantMap(
-            Map<Channel, Grant> source
-    ) {
-        Objects.requireNonNull(source, "channelGrants");
-        EnumMap<Channel, Grant> copy = new EnumMap<>(Channel.class);
-        copy.putAll(source);
-        return Collections.unmodifiableMap(copy);
-    }
-
-    private record Request(
-            String owner,
-            int priority,
-            Set<Channel> channels
-    ) {
+        return arbiter.tick();
     }
 
     public enum Channel {
@@ -361,6 +220,16 @@ public final class CombatActionArbiter26 {
             return status == DecisionStatus.GRANTED;
         }
 
+        private static Decision of(ActionArbiter.Decision<Channel> decision) {
+            return new Decision(
+                    DecisionStatus.valueOf(decision.status().name()),
+                    decision.priority(),
+                    decision.requestedChannels(),
+                    decision.blockers(),
+                    Optional.empty()
+            );
+        }
+
         private static Decision notSubmitted() {
             return new Decision(
                     DecisionStatus.NOT_SUBMITTED,
@@ -378,49 +247,6 @@ public final class CombatActionArbiter26 {
                     Set.of(),
                     Map.of(),
                     Optional.of(block)
-            );
-        }
-
-        private static Decision pending(Request request) {
-            return new Decision(
-                    DecisionStatus.PENDING,
-                    request.priority(),
-                    request.channels(),
-                    Map.of(),
-                    Optional.empty()
-            );
-        }
-
-        private static Decision granted(Request request) {
-            return new Decision(
-                    DecisionStatus.GRANTED,
-                    request.priority(),
-                    request.channels(),
-                    Map.of(),
-                    Optional.empty()
-            );
-        }
-
-        private static Decision denied(
-                Request request,
-                Map<Channel, String> blockers
-        ) {
-            return new Decision(
-                    DecisionStatus.DENIED,
-                    request.priority(),
-                    request.channels(),
-                    blockers,
-                    Optional.empty()
-            );
-        }
-
-        private Decision released() {
-            return new Decision(
-                    DecisionStatus.RELEASED,
-                    priority,
-                    requestedChannels,
-                    Map.of(),
-                    Optional.empty()
             );
         }
 
@@ -459,5 +285,42 @@ public final class CombatActionArbiter26 {
                 );
             }
         }
+    }
+
+    private static String requireOwner(String owner) {
+        if (owner == null || owner.isBlank()) {
+            throw new IllegalArgumentException("Combat action owner cannot be blank");
+        }
+        String canonical = owner.trim();
+        if (canonical.length() > ActionArbiter.MAXIMUM_OWNER_LENGTH) {
+            throw new IllegalArgumentException(
+                    "Combat action owner cannot exceed "
+                            + ActionArbiter.MAXIMUM_OWNER_LENGTH + " characters"
+            );
+        }
+        return canonical;
+    }
+
+    private static Set<Channel> immutableChannels(Set<Channel> channels) {
+        Objects.requireNonNull(channels, "channels");
+        if (channels.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "Combat action requires at least one channel"
+            );
+        }
+        java.util.EnumSet<Channel> copy = java.util.EnumSet.noneOf(Channel.class);
+        for (Channel channel : channels) {
+            copy.add(Objects.requireNonNull(channel, "channel"));
+        }
+        return Collections.unmodifiableSet(copy);
+    }
+
+    private static Map<Channel, Grant> immutableGrantMap(
+            Map<Channel, Grant> source
+    ) {
+        Objects.requireNonNull(source, "channelGrants");
+        EnumMap<Channel, Grant> copy = new EnumMap<>(Channel.class);
+        copy.putAll(source);
+        return Collections.unmodifiableMap(copy);
     }
 }

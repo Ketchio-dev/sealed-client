@@ -10,7 +10,9 @@
       "dev.sealedclient.v26.e2e.ClientRuntime26E2ETest",
       "dev.sealedclient.v26.e2e.DedicatedServerE2ETest26",
       "dev.sealedclient.v26.e2e.HighLatencyE2ETest26",
-      "dev.sealedclient.v26.e2e.NetworkResilienceE2ETest26"
+      "dev.sealedclient.v26.e2e.NetworkResilienceE2ETest26",
+      "dev.sealedclient.v26.e2e.ExplosionDamageAccuracyE2ETest26",
+      "dev.sealedclient.v26.e2e.CombatLatencyE2ETest26"
     ]
   },
   "depends": {

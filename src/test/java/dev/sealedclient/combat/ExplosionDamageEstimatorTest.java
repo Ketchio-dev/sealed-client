@@ -27,9 +27,17 @@ final class ExplosionDamageEstimatorTest {
                 ExplosionDamageEstimator.rawExplosionDamage(6.0, 0.5, 6.0),
                 0.0001
         );
+        // A fully covered target still takes the minimum point. Asserting zero
+        // here encoded the old behaviour, which a real explosion behind obsidian
+        // disproved: it dealt damage where this predicted none.
+        assertEquals(
+                1.0,
+                ExplosionDamageEstimator.rawExplosionDamage(6.0, 0.0, 6.0),
+                0.0001
+        );
         assertEquals(
                 0.0,
-                ExplosionDamageEstimator.rawExplosionDamage(6.0, 0.0, 6.0),
+                ExplosionDamageEstimator.rawExplosionDamage(12.0, 1.0, 6.0),
                 0.0001
         );
     }
@@ -53,8 +61,10 @@ final class ExplosionDamageEstimatorTest {
 
     @Test
     void reductionInputsAreClamped() {
+        // Resistance V already removes everything, so any higher level stays at
+        // zero rather than leaving the fifth of a point the old curve did.
         assertEquals(
-                0.8,
+                0.0,
                 ExplosionDamageEstimator.applyReductions(20.0, 0.0, 0.0, 9, 99),
                 0.0001
         );

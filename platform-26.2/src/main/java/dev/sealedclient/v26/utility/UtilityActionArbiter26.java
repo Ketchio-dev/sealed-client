@@ -1,7 +1,8 @@
 package dev.sealedclient.v26.utility;
 
+import dev.sealedclient.common.arbitration.ActionArbiter;
+
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.Map;
@@ -10,36 +11,25 @@ import java.util.Set;
 import java.util.TreeMap;
 
 /**
- * Deterministic, per-tick arbitration for Minecraft 26.2 utility services.
+ * Deterministic two-phase arbitration for Minecraft 26.2 utility services.
  *
- * <p>Every service submits its complete channel bundle before the runtime
- * calls {@link #resolve()}. A bundle is either granted in full or denied in
- * full, so an action can never rotate without using an item or switch a
- * hotbar slot without owning the matching use channel.</p>
+ * <p>Services submit the full channel bundle one action needs, and after
+ * {@link #resolve()} may act only on a bundle they own completely. Utility runs
+ * after combat and movement, so channels those subsystems already committed are
+ * installed as external reservations at {@link #beginTick} and are held by
+ * {@link #EXTERNAL_OWNER} for the whole tick.</p>
  *
- * <p>The runtime may reserve channels already granted to combat or movement
- * by passing them to {@link #beginTick(SafetyContext, Set)}. Reservations are
- * never pre-empted. This is the explicit bridge between the three arbiters and
- * prevents independently resolved utility work from colliding with a combat
- * action in the same client tick.</p>
+ * <p>The arbitration itself lives in {@link ActionArbiter}; this class binds it
+ * to the utility channel set and keeps the utility-specific safety vocabulary.
+ * It has no Minecraft dependencies.</p>
  */
 public final class UtilityActionArbiter26 {
-    public static final String EXTERNAL_OWNER = "@external";
+    /** Owner identifier for channels reserved by combat, movement or Baritone. */
+    public static final String EXTERNAL_OWNER = ActionArbiter.EXTERNAL_OWNER;
+    private static final int MAXIMUM_OWNER_LENGTH = ActionArbiter.MAXIMUM_OWNER_LENGTH;
 
-    private static final int MAXIMUM_OWNER_LENGTH = 96;
-    private static final Comparator<Request> REQUEST_ORDER =
-            Comparator.comparingInt(Request::priority)
-                    .reversed()
-                    .thenComparing(Request::owner);
-
-    private final Map<String, Request> requests = new TreeMap<>();
-    private final Map<Channel, Grant> grants =
-            new EnumMap<>(Channel.class);
-    private final Map<String, Decision> decisions = new TreeMap<>();
-    private final Set<Channel> reservedChannels =
-            EnumSet.noneOf(Channel.class);
-    private long tick;
-    private Phase phase = Phase.IDLE;
+    private final ActionArbiter<Channel> arbiter =
+            new ActionArbiter<>(Channel.class, "Utility");
     private SafetyBlock safetyBlock = SafetyBlock.NONE;
 
     public void beginTick(SafetyContext context) {
@@ -49,96 +39,32 @@ public final class UtilityActionArbiter26 {
     /**
      * Opens collection and atomically installs external channel reservations.
      */
-    public void beginTick(
-            SafetyContext context,
-            Set<Channel> externalReservations
-    ) {
-        SafetyContext requested = Objects.requireNonNull(context, "context");
-        Set<Channel> reservations = immutableChannels(
-                externalReservations,
-                true
-        );
-        tick++;
-        requests.clear();
-        grants.clear();
-        decisions.clear();
-        reservedChannels.clear();
-        reservedChannels.addAll(reservations);
-        safetyBlock = requested.block();
-        phase = safetyBlock == SafetyBlock.NONE
-                ? Phase.COLLECTING
-                : Phase.RESOLVED;
+    public void beginTick(SafetyContext context, Set<Channel> externalReservations) {
+        Objects.requireNonNull(context, "context");
+        safetyBlock = context.block();
+        arbiter.beginTick(safetyBlock != SafetyBlock.NONE, externalReservations);
     }
 
-    public boolean submit(
-            String owner,
-            int priority,
-            Set<Channel> channels
-    ) {
-        String requestedOwner = requireOwner(owner);
-        if (EXTERNAL_OWNER.equals(requestedOwner)) {
-            throw new IllegalArgumentException(
-                    "External reservation owner is reserved"
-            );
-        }
-        Set<Channel> requestedChannels = immutableChannels(channels, false);
-        if (safetyBlock != SafetyBlock.NONE) {
-            return false;
-        }
-        requirePhase(Phase.COLLECTING, "submit");
-        if (requests.containsKey(requestedOwner)) {
-            return false;
-        }
-        Request request = new Request(
-                requestedOwner,
-                priority,
-                requestedChannels
-        );
-        requests.put(requestedOwner, request);
-        decisions.put(requestedOwner, Decision.pending(request));
-        return true;
+    public boolean submit(String owner, int priority, Set<Channel> channels) {
+        return arbiter.submit(owner, priority, channels);
     }
 
     public void resolve() {
-        if (safetyBlock != SafetyBlock.NONE) {
-            return;
-        }
-        requirePhase(Phase.COLLECTING, "resolve");
-        for (Channel channel : reservedChannels) {
-            grants.put(channel, new Grant(EXTERNAL_OWNER, Integer.MAX_VALUE));
-        }
-        requests.values().stream()
-                .sorted(REQUEST_ORDER)
-                .forEach(this::resolveRequest);
-        phase = Phase.RESOLVED;
+        arbiter.resolve();
     }
 
     public boolean owns(String owner, Channel channel) {
-        String requestedOwner = requireOwner(owner);
-        Channel requestedChannel = Objects.requireNonNull(channel, "channel");
-        if (phase != Phase.RESOLVED || safetyBlock != SafetyBlock.NONE) {
-            return false;
-        }
-        Grant grant = grants.get(requestedChannel);
-        return grant != null && grant.owner().equals(requestedOwner);
+        return arbiter.owns(owner, channel);
     }
 
     public boolean ownsAll(String owner, Set<Channel> channels) {
-        String requestedOwner = requireOwner(owner);
-        Set<Channel> requestedChannels = immutableChannels(channels, false);
-        if (phase != Phase.RESOLVED || safetyBlock != SafetyBlock.NONE) {
-            return false;
-        }
-        return requestedChannels.stream().allMatch(
-                channel -> owns(requestedOwner, channel)
-        );
+        return arbiter.ownsAll(owner, channels);
     }
 
     public Decision decision(String owner) {
-        String requestedOwner = requireOwner(owner);
-        Decision decision = decisions.get(requestedOwner);
+        ActionArbiter.Decision<Channel> decision = arbiter.decision(owner);
         if (decision != null) {
-            return decision;
+            return Decision.of(decision);
         }
         if (safetyBlock != SafetyBlock.NONE) {
             return Decision.safetyBlocked(safetyBlock);
@@ -147,115 +73,34 @@ public final class UtilityActionArbiter26 {
     }
 
     public void releaseOwner(String owner) {
-        String requestedOwner = requireOwner(owner);
-        Request request = requests.remove(requestedOwner);
-        grants.entrySet().removeIf(entry ->
-                !EXTERNAL_OWNER.equals(entry.getValue().owner())
-                        && entry.getValue().owner().equals(requestedOwner)
-        );
-        Decision previous = decisions.get(requestedOwner);
-        if (previous != null || request != null) {
-            Decision basis = previous != null
-                    ? previous
-                    : Decision.pending(request);
-            decisions.put(requestedOwner, basis.released());
-        }
+        arbiter.releaseOwner(owner);
     }
 
     public void releaseAll() {
-        decisions.replaceAll((owner, decision) -> decision.released());
-        requests.clear();
-        grants.entrySet().removeIf(entry ->
-                !EXTERNAL_OWNER.equals(entry.getValue().owner())
-        );
-        if (phase != Phase.IDLE) {
-            phase = Phase.RESOLVED;
-        }
+        arbiter.releaseAll();
     }
 
     public Snapshot snapshot() {
+        Map<Channel, Grant> channelGrants = new EnumMap<>(Channel.class);
+        arbiter.grants().forEach((channel, grant) ->
+                channelGrants.put(channel, new Grant(grant.owner(), grant.priority()))
+        );
+        Map<String, Decision> decisions = new TreeMap<>();
+        arbiter.decisions().forEach((owner, decision) ->
+                decisions.put(owner, Decision.of(decision))
+        );
         return new Snapshot(
-                tick,
-                phase,
+                arbiter.tick(),
+                Phase.valueOf(arbiter.phase().name()),
                 safetyBlock,
-                immutableChannels(reservedChannels, true),
-                immutableGrantMap(grants),
-                Collections.unmodifiableMap(new TreeMap<>(decisions))
+                arbiter.reservedChannels(),
+                channelGrants,
+                decisions
         );
     }
 
-    private void resolveRequest(Request request) {
-        Map<Channel, String> blockers = new EnumMap<>(Channel.class);
-        for (Channel channel : request.channels()) {
-            Grant grant = grants.get(channel);
-            if (grant != null) {
-                blockers.put(channel, grant.owner());
-            }
-        }
-        if (!blockers.isEmpty()) {
-            decisions.put(
-                    request.owner(),
-                    Decision.denied(request, blockers)
-            );
-            return;
-        }
-        for (Channel channel : request.channels()) {
-            grants.put(
-                    channel,
-                    new Grant(request.owner(), request.priority())
-            );
-        }
-        decisions.put(request.owner(), Decision.granted(request));
-    }
-
-    private void requirePhase(Phase required, String operation) {
-        if (phase != required) {
-            throw new IllegalStateException(
-                    operation + " requires " + required
-                            + " phase, current phase is " + phase
-            );
-        }
-    }
-
-    private static String requireOwner(String owner) {
-        if (owner == null || owner.isBlank()) {
-            throw new IllegalArgumentException(
-                    "Utility action owner cannot be blank"
-            );
-        }
-        String canonical = owner.trim();
-        if (canonical.length() > MAXIMUM_OWNER_LENGTH) {
-            throw new IllegalArgumentException(
-                    "Utility action owner cannot exceed "
-                            + MAXIMUM_OWNER_LENGTH + " characters"
-            );
-        }
-        return canonical;
-    }
-
-    private static Set<Channel> immutableChannels(
-            Set<Channel> channels,
-            boolean allowEmpty
-    ) {
-        Objects.requireNonNull(channels, "channels");
-        if (!allowEmpty && channels.isEmpty()) {
-            throw new IllegalArgumentException(
-                    "Utility action requires at least one channel"
-            );
-        }
-        EnumSet<Channel> copy = EnumSet.noneOf(Channel.class);
-        for (Channel channel : channels) {
-            copy.add(Objects.requireNonNull(channel, "channel"));
-        }
-        return Collections.unmodifiableSet(copy);
-    }
-
-    private static Map<Channel, Grant> immutableGrantMap(
-            Map<Channel, Grant> source
-    ) {
-        EnumMap<Channel, Grant> copy = new EnumMap<>(Channel.class);
-        copy.putAll(Objects.requireNonNull(source, "channelGrants"));
-        return Collections.unmodifiableMap(copy);
+    public long tick() {
+        return arbiter.tick();
     }
 
     public enum Channel {
@@ -321,13 +166,6 @@ public final class UtilityActionArbiter26 {
         }
     }
 
-    private record Request(
-            String owner,
-            int priority,
-            Set<Channel> channels
-    ) {
-    }
-
     public record Decision(
             DecisionStatus status,
             int priority,
@@ -358,6 +196,16 @@ public final class UtilityActionArbiter26 {
             return status == DecisionStatus.GRANTED;
         }
 
+        private static Decision of(ActionArbiter.Decision<Channel> decision) {
+            return new Decision(
+                    DecisionStatus.valueOf(decision.status().name()),
+                    decision.priority(),
+                    decision.requestedChannels(),
+                    decision.blockers(),
+                    SafetyBlock.NONE
+            );
+        }
+
         private static Decision notSubmitted() {
             return new Decision(
                     DecisionStatus.NOT_SUBMITTED,
@@ -375,49 +223,6 @@ public final class UtilityActionArbiter26 {
                     Set.of(),
                     Map.of(),
                     block
-            );
-        }
-
-        private static Decision pending(Request request) {
-            return new Decision(
-                    DecisionStatus.PENDING,
-                    request.priority(),
-                    request.channels(),
-                    Map.of(),
-                    SafetyBlock.NONE
-            );
-        }
-
-        private static Decision granted(Request request) {
-            return new Decision(
-                    DecisionStatus.GRANTED,
-                    request.priority(),
-                    request.channels(),
-                    Map.of(),
-                    SafetyBlock.NONE
-            );
-        }
-
-        private static Decision denied(
-                Request request,
-                Map<Channel, String> blockers
-        ) {
-            return new Decision(
-                    DecisionStatus.DENIED,
-                    request.priority(),
-                    request.channels(),
-                    blockers,
-                    SafetyBlock.NONE
-            );
-        }
-
-        private Decision released() {
-            return new Decision(
-                    DecisionStatus.RELEASED,
-                    priority,
-                    requestedChannels,
-                    Map.of(),
-                    SafetyBlock.NONE
             );
         }
     }
@@ -451,5 +256,46 @@ public final class UtilityActionArbiter26 {
                     ))
             );
         }
+    }
+
+    private static String requireOwner(String owner) {
+        if (owner == null || owner.isBlank()) {
+            throw new IllegalArgumentException(
+                    "Utility action owner cannot be blank"
+            );
+        }
+        String canonical = owner.trim();
+        if (canonical.length() > MAXIMUM_OWNER_LENGTH) {
+            throw new IllegalArgumentException(
+                    "Utility action owner cannot exceed "
+                            + MAXIMUM_OWNER_LENGTH + " characters"
+            );
+        }
+        return canonical;
+    }
+
+    private static Set<Channel> immutableChannels(
+            Set<Channel> channels,
+            boolean allowEmpty
+    ) {
+        Objects.requireNonNull(channels, "channels");
+        if (!allowEmpty && channels.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "Utility action requires at least one channel"
+            );
+        }
+        EnumSet<Channel> copy = EnumSet.noneOf(Channel.class);
+        for (Channel channel : channels) {
+            copy.add(Objects.requireNonNull(channel, "channel"));
+        }
+        return Collections.unmodifiableSet(copy);
+    }
+
+    private static Map<Channel, Grant> immutableGrantMap(
+            Map<Channel, Grant> source
+    ) {
+        EnumMap<Channel, Grant> copy = new EnumMap<>(Channel.class);
+        copy.putAll(Objects.requireNonNull(source, "channelGrants"));
+        return Collections.unmodifiableMap(copy);
     }
 }
