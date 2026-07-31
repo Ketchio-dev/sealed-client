@@ -37,6 +37,11 @@ public final class HotbarAccess {
         player.getInventory().setSelectedHotbarSlot(slot);
     }
 
+    /** The stack in the selected hotbar slot. */
+    public static net.minecraft.world.item.ItemStack selectedStack(Player player) {
+        return player.getInventory().getSelected();
+    }
+
     /** Whether the given slot is already selected. */
     public static boolean isSelected(Player player, int slot) {
         return selectedSlot(player) == slot;

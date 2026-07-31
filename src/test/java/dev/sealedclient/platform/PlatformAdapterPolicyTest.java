@@ -30,7 +30,11 @@ final class PlatformAdapterPolicyTest {
             new Rule("input.forwardImpulse", "MovementInputAccess"),
             new Rule("input.leftImpulse", "MovementInputAccess"),
             new Rule("instanceof SwordItem", "ItemKinds"),
-            new Rule("instanceof PickaxeItem", "ItemKinds")
+            new Rule("instanceof PickaxeItem", "ItemKinds"),
+            new Rule("MobEffects.DAMAGE_RESISTANCE", "EntityAccess"),
+            new Rule("getArmorSlots()", "EntityAccess"),
+            new Rule("absMoveTo(", "EntityAccess"),
+            new Rule("getInventory().getSelected()", "HotbarAccess")
     );
 
     @Test

@@ -730,7 +730,7 @@ public final class AutoCrystalModule extends Module implements TickableModule {
         try {
             if (selection.slot() >= 0) {
                 HotbarAccess.selectSlot(minecraft.player, selection.slot());
-                if (!minecraft.player.getInventory().getSelected().is(Items.END_CRYSTAL)) {
+                if (!HotbarAccess.selectedStack(minecraft.player).is(Items.END_CRYSTAL)) {
                     return false;
                 }
             } else if (!minecraft.player.getItemInHand(selection.hand())

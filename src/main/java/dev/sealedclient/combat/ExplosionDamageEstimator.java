@@ -1,6 +1,7 @@
 package dev.sealedclient.combat;
 
 import dev.sealedclient.common.combat.ExplosionDamageFormula;
+import dev.sealedclient.platform.EntityAccess;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.world.Difficulty;
 import net.minecraft.world.effect.MobEffectInstance;
@@ -113,13 +114,13 @@ public final class ExplosionDamageEstimator {
     }
 
     private static int resistanceLevel(LivingEntity entity) {
-        MobEffectInstance resistance = entity.getEffect(MobEffects.DAMAGE_RESISTANCE);
+        MobEffectInstance resistance = entity.getEffect(EntityAccess.resistanceEffect());
         return resistance == null ? 0 : resistance.getAmplifier() + 1;
     }
 
     private static int protectionPoints(LivingEntity entity) {
         int points = 0;
-        for (ItemStack armor : entity.getArmorSlots()) {
+        for (ItemStack armor : EntityAccess.armorPieces(entity)) {
             for (var enchantment : armor.getEnchantments().entrySet()) {
                 if (enchantment.getKey().is(Enchantments.BLAST_PROTECTION)) {
                     points += enchantment.getIntValue() * 2;

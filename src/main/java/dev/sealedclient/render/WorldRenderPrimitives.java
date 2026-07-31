@@ -1,6 +1,7 @@
 package dev.sealedclient.render;
 
 import com.mojang.blaze3d.systems.RenderSystem;
+import dev.sealedclient.common.render.ArgbColor;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexFormat;
@@ -144,15 +145,15 @@ final class WorldRenderPrimitives {
     }
 
     static int opaque(int argb) {
-        return argb | 0xFF000000;
+        return ArgbColor.opaque(argb);
     }
 
     private static float[] color(int argb, float alphaScale) {
         return new float[] {
-                (argb >>> 16 & 0xFF) / 255.0F,
-                (argb >>> 8 & 0xFF) / 255.0F,
-                (argb & 0xFF) / 255.0F,
-                Math.min(1.0F, (argb >>> 24 & 0xFF) / 255.0F * alphaScale)
+                ArgbColor.red(argb),
+                ArgbColor.green(argb),
+                ArgbColor.blue(argb),
+                ArgbColor.alpha(argb, alphaScale)
         };
     }
 }

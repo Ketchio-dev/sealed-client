@@ -5,6 +5,7 @@ import dev.sealedclient.core.Module;
 import dev.sealedclient.core.ModuleRisk;
 import dev.sealedclient.core.TickableModule;
 import dev.sealedclient.core.setting.DoubleSetting;
+import dev.sealedclient.platform.EntityAccess;
 import dev.sealedclient.service.ActionCoordinator;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.ClientInput;
@@ -178,7 +179,8 @@ public final class FreecamModule extends Module implements TickableModule {
         nextCamera.noPhysics = true;
         nextCamera.setNoGravity(true);
         nextCamera.setSilent(true);
-        nextCamera.absMoveTo(
+        EntityAccess.snapTo(
+                nextCamera,
                 start.x,
                 start.y,
                 start.z,
