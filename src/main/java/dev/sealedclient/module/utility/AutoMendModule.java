@@ -1,5 +1,6 @@
 package dev.sealedclient.module.utility;
 
+import dev.sealedclient.common.item.DurabilityPercent;
 import dev.sealedclient.core.Category;
 import dev.sealedclient.core.Module;
 import dev.sealedclient.core.ModuleRisk;
@@ -156,7 +157,7 @@ public final class AutoMendModule extends Module implements TickableModule {
             }
             found = true;
             int remaining = stack.getMaxDamage() - stack.getDamageValue();
-            lowest = Math.min(lowest, Math.round(remaining * 100.0f / stack.getMaxDamage()));
+            lowest = Math.min(lowest, DurabilityPercent.of(remaining, stack.getMaxDamage()));
         }
         return found ? lowest : 100;
     }

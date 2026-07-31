@@ -1,5 +1,7 @@
 package dev.sealedclient.v26.utility;
 
+import dev.sealedclient.common.item.DurabilityPercent;
+
 import java.util.List;
 import java.util.Objects;
 
@@ -377,8 +379,7 @@ public final class AutoMendDecisionEngine26 {
         }
 
         public int remainingPercent() {
-            return (int) (((long) maximumDamage - damage)
-                    * 100L / maximumDamage);
+            return DurabilityPercent.fromDamage(damage, maximumDamage);
         }
 
         boolean sameEquipment(ArmorPiece other) {

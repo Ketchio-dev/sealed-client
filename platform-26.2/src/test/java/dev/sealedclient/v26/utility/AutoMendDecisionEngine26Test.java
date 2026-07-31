@@ -322,6 +322,22 @@ class AutoMendDecisionEngine26Test {
     }
 
     @Test
+    void durabilityRoundsRatherThanTruncating() {
+        // The existing case above uses a maximum of 100, where rounding and
+        // truncation agree, so it never noticed that this engine truncated
+        // while 1.21.4 rounded. On a diamond chestplate the two answers differ
+        // for half of all durability values and move the repair threshold.
+        AutoMendDecisionEngine26.ArmorPiece chestplate =
+                new AutoMendDecisionEngine26.ArmorPiece(
+                        "chest",
+                        "diamond_chestplate#mending",
+                        365,
+                        528
+                );
+        assertEquals(31, chestplate.remainingPercent());
+    }
+
+    @Test
     void durabilityMathAndConfigurationAreValidated() {
         AutoMendDecisionEngine26.ArmorPiece piece =
                 new AutoMendDecisionEngine26.ArmorPiece(
