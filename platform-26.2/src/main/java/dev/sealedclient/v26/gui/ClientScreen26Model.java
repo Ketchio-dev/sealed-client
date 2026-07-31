@@ -1,11 +1,12 @@
 package dev.sealedclient.v26.gui;
 
+import dev.sealedclient.common.gui.ClickGuiModel;
+
 import dev.sealedclient.common.module.ModuleCategory;
 import dev.sealedclient.common.module.RegisteredModule;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.List;
-import java.util.Locale;
 import java.util.OptionalDouble;
 import java.util.OptionalInt;
 
@@ -25,15 +26,16 @@ public final class ClientScreen26Model {
             CategoryFilter category,
             String search
     ) {
-        String query = search == null ? "" : search.trim().toLowerCase(Locale.ROOT);
         return modules.stream()
                 .filter(module -> category.matches(module.descriptor().category()))
-                .filter(module -> query.isEmpty()
-                        || module.descriptor().name().toLowerCase(Locale.ROOT).contains(query)
-                        || module.descriptor().id().toLowerCase(Locale.ROOT).contains(query)
-                        || module.descriptor().description().toLowerCase(Locale.ROOT).contains(query)
-                        || module.descriptor().risk().name().toLowerCase(Locale.ROOT).contains(query)
-                        || module.descriptor().availability().name().toLowerCase(Locale.ROOT).contains(query))
+                .filter(module -> ClickGuiModel.matchesQuery(
+                        search,
+                        module.descriptor().name(),
+                        module.descriptor().id(),
+                        module.descriptor().description(),
+                        module.descriptor().risk().name(),
+                        module.descriptor().availability().name()
+                ))
                 .toList();
     }
 

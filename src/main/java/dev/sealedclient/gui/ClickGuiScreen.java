@@ -1,6 +1,7 @@
 package dev.sealedclient.gui;
 
 import com.mojang.blaze3d.platform.InputConstants;
+import dev.sealedclient.common.gui.ClickGuiModel;
 import dev.sealedclient.config.BuiltInPresetCatalog;
 import dev.sealedclient.config.ConfigManager;
 import dev.sealedclient.core.Category;
@@ -22,12 +23,12 @@ import org.lwjgl.glfw.GLFW;
 
 import java.awt.Color;
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.EnumMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -44,6 +45,12 @@ public final class ClickGuiScreen extends Screen {
     private static final int PRESET_CARD_HEIGHT = 52;
     private static final int PRESET_ACTION_HEIGHT = 22;
     private static final int PADDING = 9;
+
+    /** Shared geometry, so the layout tests exercise this screen's arithmetic. */
+    private static final ClickGuiModel.Metrics METRICS = new ClickGuiModel.Metrics(
+            MAX_WIDTH, MAX_HEIGHT, 260, 220, HEADER_HEIGHT, SECTION_HEADER_HEIGHT,
+            SIDEBAR_WIDTH, MODULE_HEIGHT, SETTING_HEIGHT, PADDING
+    );
     private static final long RISK_CONFIRMATION_MILLIS = 5_000L;
 
     private static final int COLOR_BACKDROP = 0xB0080B0F;
@@ -781,6 +788,7 @@ public final class ClickGuiScreen extends Screen {
                     if (!expandedModules.add(module.id())) {
                         expandedModules.remove(module.id());
                     }
+                    clampScrollToContent();
                 } else if (button == GLFW.GLFW_MOUSE_BUTTON_MIDDLE) {
                     module.setFavorite(!module.isFavorite());
                     configManager.save();
@@ -1019,13 +1027,13 @@ public final class ClickGuiScreen extends Screen {
                 && mouseX < layout.right
                 && mouseY >= layout.listTop
                 && mouseY < layout.listBottom) {
-            int viewportHeight = Math.max(0, layout.listBottom - layout.listTop);
-            int maximum = Math.max(
-                    0,
-                    totalContentHeight(visibleModules()) - viewportHeight
-            );
-            int requested = scroll() - (int) Math.round(verticalAmount * 28.0);
-            scrollOffsets.put(selectedCategory, Math.max(0, Math.min(maximum, requested)));
+            scrollOffsets.put(selectedCategory, ClickGuiModel.scrollBy(
+                    scroll(),
+                    verticalAmount,
+                    totalContentHeight(visibleModules()),
+                    Math.max(0, layout.listBottom - layout.listTop),
+                    28.0
+            ));
             return true;
         }
         return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
@@ -1120,20 +1128,20 @@ public final class ClickGuiScreen extends Screen {
     }
 
     private int totalContentHeight(List<Module> modules) {
-        int height = 0;
+        List<ClickGuiModel.Row> rows = new ArrayList<>(modules.size());
         for (Module module : modules) {
-            height += MODULE_HEIGHT;
-            if (!expandedModules.contains(module.id())) {
-                continue;
-            }
-            height += SETTING_HEIGHT + 3;
-            for (Setting<?> setting : module.settings()) {
-                if (setting.isVisible()) {
-                    height += SETTING_HEIGHT;
+            boolean expanded = expandedModules.contains(module.id());
+            int visibleSettings = 0;
+            if (expanded) {
+                for (Setting<?> setting : module.settings()) {
+                    if (setting.isVisible()) {
+                        visibleSettings++;
+                    }
                 }
             }
+            rows.add(new ClickGuiModel.Row(expanded, visibleSettings));
         }
-        return height;
+        return ClickGuiModel.contentHeight(rows, METRICS);
     }
 
     private int scroll() {
@@ -1148,19 +1156,17 @@ public final class ClickGuiScreen extends Screen {
     }
 
     private Layout computeLayout() {
-        int windowWidth = Math.max(260, Math.min(MAX_WIDTH, width - 12));
-        int windowHeight = Math.max(220, Math.min(MAX_HEIGHT, height - 36));
-        windowWidth = Math.min(windowWidth, width);
-        windowHeight = Math.min(windowHeight, height);
-        int left = Math.max(0, (width - windowWidth) / 2);
-        int top = Math.max(0, (height - windowHeight) / 2 - 4);
-        int right = Math.min(width, left + windowWidth);
-        int bottom = Math.min(height, top + windowHeight);
-        int mainLeft = Math.min(right - 120, left + SIDEBAR_WIDTH);
-        int contentTop = top + HEADER_HEIGHT;
-        int listTop = contentTop + SECTION_HEADER_HEIGHT;
-        int listBottom = bottom - PADDING;
-        return new Layout(left, top, right, bottom, mainLeft, contentTop, listTop, listBottom);
+        ClickGuiModel.Layout resolved = ClickGuiModel.layout(width, height, METRICS);
+        return new Layout(
+                resolved.left(),
+                resolved.top(),
+                resolved.right(),
+                resolved.bottom(),
+                resolved.mainLeft(),
+                resolved.contentTop(),
+                resolved.listTop(),
+                resolved.listBottom()
+        );
     }
 
     private String trimToWidth(String value, int availableWidth) {
@@ -1204,16 +1210,35 @@ public final class ClickGuiScreen extends Screen {
 
     private List<Module> visibleModules() {
         List<Module> modules = moduleManager.inCategory(selectedCategory);
-        String query = searchQuery.trim().toLowerCase(Locale.ROOT);
+        String query = searchQuery.trim();
         if (query.isEmpty()) {
             return modules;
         }
         return modules.stream()
-                .filter(module -> module.name().toLowerCase(Locale.ROOT).contains(query)
-                        || module.id().toLowerCase(Locale.ROOT).contains(query)
-                        || module.description().toLowerCase(Locale.ROOT).contains(query)
-                        || module.risk().name().toLowerCase(Locale.ROOT).contains(query))
+                .filter(module -> ClickGuiModel.matchesQuery(
+                        query,
+                        module.name(),
+                        module.id(),
+                        module.description(),
+                        module.risk().name()
+                ))
                 .toList();
+    }
+
+    /**
+     * Pulls the offset back after the list length changes on its own.
+     *
+     * <p>Collapsing a module shortens the list without the user scrolling. The
+     * stale offset used to survive and push every remaining row off the top,
+     * leaving a blank panel until the user scrolled back by hand.</p>
+     */
+    private void clampScrollToContent() {
+        Layout layout = layout();
+        scrollOffsets.put(selectedCategory, ClickGuiModel.clampScroll(
+                scroll(),
+                totalContentHeight(visibleModules()),
+                Math.max(0, layout.listBottom - layout.listTop)
+        ));
     }
 
     private void resetSearchScroll() {
