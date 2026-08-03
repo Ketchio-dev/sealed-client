@@ -5,10 +5,8 @@ Licensed under the Apache License, Version 2.0. See LICENSE for the full terms.
 
 This project is an original implementation for Minecraft Java Edition 1.21.4
 and 26.2.
-이 프로젝트는 Minecraft Java Edition 1.21.4와 26.2용 독자 구현입니다.
 
 No Nami source files, binaries, or assets are included.
-Nami의 소스 파일, 바이너리 또는 리소스를 포함하지 않습니다.
 
 Minecraft, Fabric, Baritone, ViaFabricPlus, Sodium, and other third-party
 names are the property of their respective owners. Their mention identifies

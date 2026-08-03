@@ -2,414 +2,129 @@
 
 ## 1.0.0
 
-### 버전 번호를 1.0.0으로 되돌립니다
-
-- 이전 태그는 3.3.1까지 올라가 있었지만 **아무도 받은 적이 없습니다.** 릴리스가
-  하나도 발행되지 않았고 스타·포크도 0이라, 그 번호들은 실제 배포 이력이 아니라
-  개발 과정이 새어나온 것이었습니다. 처음 배포하는 것을 3.3.1이라 부르는 것보다
-  1.0.0이라 부르는 쪽이 정직합니다.
-- 과거 태그(v2.2.0 ~ v3.3.1)는 지우지 않습니다. CI 이력과 커밋 참조가 걸려 있고,
-  지워서 얻는 것이 없습니다. 번호가 한 번 내려간 사실은 이 항목으로 남깁니다.
-- 되돌릴 수 있을 때 되돌렸습니다. 사용자가 한 명이라도 생긴 뒤에는 못 하는
-  변경입니다.
-
-### 1.0이 약속하는 범위를 명문화
-
-- 지원 대상은 **1.21.4와 26.2 두 버전**입니다. 다른 버전은 "곧 지원"이 아니라,
-  README에 남은 작업량을 컴파일러가 센 숫자로 적었습니다.
-- 설정 형식과 명령 이름은 1.x 안에서 깨지 않습니다. 불가피하면 자동 마이그레이션과
-  CHANGELOG 기록을 동반합니다.
-- 측정한 값만 문서에 남기고, 확인하지 못한 설명은 가설이라고 명시합니다.
-
-### 남은 기술 부채를 전수 조사
-
-- TODO/FIXME 0개, 빈 catch 0개, 컴파일 경고 0개를 확인했습니다.
-- 1.21.8 호환성 부채는 101 → 54개로 줄었고, 남은 것의 정체를 확정했습니다.
-  44개는 렌더 파이프라인 이식(`RenderSystem` → `RenderPipeline`), 9개는 어댑터
-  내부입니다. 후자는 0이 될 수 없으며 그것이 어댑터의 목적입니다.
-- 렌더 이식은 이번에 하지 않습니다. 1.21.4의 렌더 결과를 CI에서 검증할 수단이
-  없어, 회귀를 자동으로 잡지 못하는 상태로 894줄을 옮기는 것은 부채를 갚는 게
-  아니라 위치만 바꾸는 일입니다.
-
-## 3.3.1
-
-### 새 버전 지원 비용을 실측하고 61곳을 1곳으로 줄임
-
-- "더 많은 버전을 지원한다"를 추정 대신 측정했습니다. 기존 1.21.4 소스를 그대로
-  1.21.8에 컴파일해 **오류 101개, 영향 파일 27개(157개 중 17%)** 를 얻었습니다.
-- 오류의 60%인 61개가 실제로는 이름 하나였습니다. `Inventory.selected`와
-  `setSelectedHotbarSlot`이 나중 버전에서 개명됐고, 17개 파일이 그 이름을 직접
-  부르고 있었습니다. 한 줄짜리 변경이 61개 오류로 번지는 구조였습니다.
-- 버전마다 달라지는 접근을 어댑터 3개로 모았습니다. 핫바 슬롯, 이동 입력,
-  그리고 무기·곡괭이 판정입니다. 마지막 것은 `SwordItem`/`PickaxeItem` 클래스가
-  삭제되어 태그로 바뀐 경우인데, 태그 쪽이 더 정확하기도 합니다. 바닐라 클래스를
-  상속하지 않은 데이터팩 검도 이제 검으로 인식됩니다.
-- 이 정리로 1.21.8 오류가 101개에서 55개로 줄었습니다. 남은 것의 대부분인 46개는
-  렌더 파이프라인 개편이며 파일 2개에 몰려 있습니다. 이는 단순 개명이 아니라
-  실제 이식이 필요해 별도 작업으로 분리했습니다.
-- 새 호출부가 같은 문제를 다시 만들지 못하도록 소스 검사 테스트를 추가했습니다.
-  일부러 위반을 넣어 테스트가 실제로 실패하는 것을 확인했습니다.
-- 의존성 체크섬 검증은 끄지 않았습니다. 새 버전 조사에는 일회성 우회만 사용했고
-  저장소 설정은 그대로입니다.
-
-## 3.3.0
-
-### 버전 확대를 위한 공용 코어 추출
-
-- 새 마인크래프트 버전을 추가하기 전에, 추가해도 되는 상태를 먼저 만들었습니다.
-  26.2에는 외부 의존성이 전혀 없는 순수 결정 로직이 10,608줄 있었지만 전부
-  플랫폼 안에 갇혀 있어서, 버전을 하나 늘리면 사본도 하나 늘어나는 구조였습니다.
-- 크리스탈 점수 계산을 `common`으로 옮겼습니다. 옮기는 과정에서 실제 결함이
-  드러났습니다. 26.2의 두 엔진이 각자 폭발 공식 사본을 갖고 있었고, 둘 다
-  시야가 완전히 막힌 대상에게 0을 반환했습니다. 3.2에서 실측으로 반증한 바로
-  그 오류이며, 서버는 엄폐 너머로도 최소 1의 피해를 줍니다. 공성·크리스탈
-  채굴·침대/앵커 세 경로가 이 값을 읽고 있었으므로, 흑요석 뒤 대상을 안전하다고
-  잘못 판단하고 있었습니다.
-- 두 사본을 실측 검증된 공식으로 통일하고, 다시 갈라지지 못하도록 실측 거리와
-  노출도 전 구간에서 두 결과가 일치하는지 검사하는 테스트를 넣었습니다.
-
-### 클릭 GUI 정리와 실제 결함 수정
-
-- 모듈 목록의 배치·스크롤·검색이 렌더링 코드 사이에 섞여 있어 게임을 켜지 않고는
-  검증할 수 없었습니다. 이 계산을 `common`으로 분리하고 화면이 그것을 호출하도록
-  바꿔, 테스트가 실제 사용되는 코드를 검사합니다.
-- 분리 과정에서 결함을 찾았습니다. 펼친 모듈을 접으면 목록이 짧아지는데 스크롤
-  위치가 그대로 남아, 남은 항목이 전부 화면 위로 밀리고 빈 패널이 보였습니다.
-  검색으로 목록이 줄어들 때는 이미 처리돼 있었지만 접기에는 빠져 있었습니다.
-  이제 두 경로가 같은 보정을 씁니다.
-- 검색 술어는 26.2와 사실상 동일해서 하나로 합쳤습니다. 스크롤은 26.2가 행 단위,
-  1.21.4가 픽셀 단위로 서로 다르므로 억지로 합치지 않았습니다.
-
-### 통합하지 않은 것
-
-- 1.21.4의 크리스탈 점수 공식을 공용 엔진으로 옮기지 않았습니다. 두 공식은 실제로
-  다릅니다. 1.21.4는 거리 항이 두 개이고 가중치가 코드에 박혀 있으며, 자기 피해
-  여유분도 0.5로 고정입니다. 옮기면 리팩터링이 아니라 전투 동작 변경이 되고,
-  어느 쪽이 더 나은지는 아직 실측되지 않았습니다. 대신 차이를 테스트로 고정해서
-  나중에 통합할 때 무엇이 바뀌는지 드러나게 했습니다.
-
-## 3.2.1
-
-### 아비터 중복 제거 마무리
-
-- 세 아비터에 각각 복제돼 있던 owner 검증과 방어적 복사 헬퍼를 공유 엔진으로
-  올렸습니다. 같은 로직이 세 벌 존재하던 마지막 지점이었고, 총 946줄에서
-  872줄로 줄었습니다.
-- 남은 줄 수는 하위 시스템마다 채널 집합이 달라서 존재하는 타입 선언이며,
-  이는 기존 테스트가 그대로 통과해야 한다는 조건과 맞바꿀 수 없는 공개
-  API입니다. 그래서 판정 기준을 줄 수가 아니라 중복 존재 여부로 바꿨습니다.
-
-### 폭발 예측 잔차의 원인 규명
-
-- 정확도 게임 테스트가 서버 자신의 좌표와 블록으로 같은 계산을 한 번 더 돌려
-  기록하도록 했습니다. 클라이언트 입력의 오차와 계산식 자체의 오차를 분리해서
-  볼 수 있습니다.
-- 이 계측으로 지형 생성 순서 결함을 찾았습니다. 청크를 강제 로드하기 전에
-  `fill`을 실행해 발판이 만들어지지 않은 채로 측정하던 시나리오가 있었습니다.
-  발판 존재를 명시적으로 검증하도록 바꿨습니다.
-- 수정 후 10개 시나리오 중 7개가 서버와 소수점까지 일치합니다. 남은 3개의
-  잔차는 거리·시야·낙하 피해·흡수 하트가 아님을 계측으로 배제했으며, 확정되지
-  않은 가설을 사실처럼 적지 않고 그대로 문서화했습니다.
-- 정확히 일치하는 시나리오가 조용히 근사값으로 퇴화하지 않도록 별도 테스트로
-  고정하고, 예측값이 실제 피해보다 낮아지지 않는다는 단방향 성질도 함께
-  검증합니다.
-
-## 3.2.0
-
-### 전투 정확도를 실측으로 검증
-
-- 전용 서버에서 실제 엔드 크리스탈을 터뜨려 서버가 적용한 체력 감소를 읽고,
-  예측값과 대조하는 Client GameTest를 추가했습니다. 10개 시나리오 중 6개가
-  오차 0이며 최대 오차는 0.667입니다.
-- 실측 결과 폭발 계산의 실제 결함 두 가지를 찾아 고쳤습니다. 첫째, 시야가
-  완전히 막힌 대상에게 0을 반환했지만 실제로는 최소 1의 피해가 들어갑니다.
-  엄폐가 안전하다고 잘못 판단하던 문제입니다. 둘째, 노출도 표본을 2x2x2로
-  근사했으나 바닐라는 대상 크기에 따라 훨씬 촘촘하게 표본을 잡습니다.
-- 방어력이나 인챈트에 음수가 들어오면 피해가 오히려 커지던 문제를 막았습니다.
-- 검증된 계산식을 `common`의 순수 함수로 분리하고, 실측 시나리오를 고정 표
-  단위 테스트로 박았습니다. GameTest가 CI에서 돌지 않는 대신 이 표가 매
-  빌드에서 회귀를 잡습니다.
-
-### 반응 지연과 선택 최적성
-
-- 서버 변화를 관측한 뒤 반응하기까지 걸리는 틱 수를 측정하는 게임 테스트를
-  추가했습니다. 12개 표본 모두 1틱이며, 이는 원인을 관측한 틱보다 먼저 반응할
-  수 없다는 물리적 하한입니다.
-- 크리스탈 후보 선택이 전수 탐색으로 구한 최적해와 일치함을 2000회 무작위
-  시행으로 검증합니다. 후보 순서가 결과를 바꾸지 않는 것도 함께 확인합니다.
-- README에 "측정된 상한" 절을 추가해 달성치와 이론적 상한, 그리고 이 수치가
-  다른 클라이언트와의 비교가 아니라는 점을 명시했습니다.
-
-### 26.2 아비트레이션 중복 제거
-
-- 전투·이동·유틸리티 아비터 세 개가 알고리즘은 동일하면서 1387줄에 걸쳐
-  복제되어 있었습니다. 공유 엔진 하나와 얇은 래퍼로 정리해 946줄로 줄였습니다.
-  기존 테스트 24개가 수정 없이 통과하는 것으로 동작 동일성을 확인했습니다.
-- 세 아비터를 잇는 교차 예약 규칙이 손으로 짠 조건문 나열이었습니다. 순수
-  함수로 분리하고, 기존 규칙과 모든 채널 조합에서 결과가 같음을 테스트로
-  고정했습니다.
-
-## 3.1.0
-
-### 회전 아비트레이션
-
-- 양 플랫폼이 공유하는 `RotationController`를 `common`에 추가해 한 틱에
-  여러 모듈이 조준을 요청해도 우선순위가 가장 높은 하나만 반영되도록 했습니다.
-  우선순위가 같으면 먼저 요청한 쪽을 유지합니다.
-- 조준 각도를 실제로 쓰는 지점을 플랫폼마다 `RotationApplier` 하나로 모았고,
-  기존에 직접 `setYRot`/`setXRot`를 호출하던 14개 지점을 모두 전환했습니다.
-  정책 테스트가 직접 호출의 재발을 빌드 실패로 막습니다.
-- 26.2는 그동안 조준 조정 장치가 아예 없어 같은 틱에 공성·활·전통·엘리트라·
-  자동 수리가 서로의 조준을 덮어썼습니다. 이번에 1.21.4와 동등한 조정 체계를
-  갖췄습니다.
-- 틱당 최대 회전량을 제한하는 보간을 추가했습니다. 기본값은 180도로 기존
-  동작과 동일하며, 낮추면 여러 틱에 걸쳐 목표 각도로 이동합니다. yaw는
-  -180/180 경계를 최단 경로로 넘어갑니다.
-- 아무 모듈도 조준하지 않는 틱에는 개입 이전 각도로 되돌립니다. 사용자가
-  마우스를 움직였거나 서버가 시점을 교정한 경우에는 되돌리지 않습니다.
-
-### 네트워크 단절 검증
-
-- `LatencyProxy26`에 진행 중인 연결만 끊고 리스너는 유지하는 기능을 더해,
-  연결 종료 패킷 없이 회선이 사라지는 상황을 재현합니다.
-- 26.2 Client GameTest에 단절·정리·재접속 시나리오를 추가했습니다. 클라이언트가
-  단절을 인지하고 상태를 해제한 뒤 같은 주소로 재접속하며, 이전 세션의 상태가
-  남지 않는지 확인합니다.
-- `networkResilienceTest` 태스크로 분리했습니다. 실제 네트워크 경로를
-  검증하려면 `-Psealed.minecraftEula=true`가 필요합니다.
-
-### 기타
-
-- 서버 사이드바의 대기열 표시를 읽는 규칙을 `QueueTextParser`로 분리해 실제
-  스코어보드 없이 단위 테스트로 검증합니다.
-- 테스트 코드에 남아 있던 리브랜드 이전 스레드 이름과 서버 라벨을 정리했습니다.
-
-## 3.0.0
-
-### Sealed Client 리브랜드
-
-- 제품명, Java 패키지, mod id, Maven group과 배포 파일명을 Sealed Client로
-  통일했습니다.
-- 로컬 명령 프리픽스를 `;sealed`로, 설정 경로를 `config/sealedclient/`와
-  `sealedclient-26.2.json`으로, 휴대용 프로필 포맷을 `sealed-profile`로
-  변경했습니다.
-- 공개 배포 전 클린 브레이크로 적용했으며 이전 식별자용 마이그레이션 shim은
-  제공하지 않습니다.
-
-### 라이선스와 공개 배포
-
-- 프로젝트 라이선스를 표준 Apache License 2.0으로 전환하고 LICENSE와 NOTICE를
-  양 플랫폼 배포 묶음에 포함했습니다.
-- GitHub 공개 저장소와 실제 CI 검증을 위한 패키지·GameTest·스크립트·보안 정책
-  경로를 새 아이덴티티에 맞게 갱신했습니다.
-
-### 릴리스 검증
-
-- 양 플랫폼 JAR·소스 JAR·SBOM 이름을 3.0.0 규칙으로 통일하고 반복 빌드
-  SHA-256 재현성 게이트를 유지했습니다.
-- 새 명령 프리픽스의 panic/list 처리와 이전 프리픽스 미인식을 Client
-  GameTest로 검증합니다.
-
-## 2.2.0
-
-### 안정성 격리
-
-- 이벤트 리스너 하나가 예외를 던져도 이후 우선순위 리스너를 계속 호출하고,
-  예외를 이벤트 발행자에게 전파하지 않도록 격리했습니다.
-- 26.2 틱 서브시스템을 개별 가드해 런타임 예외가 난 모듈을 자동으로 끄고
-  모듈 id와 예외를 기록한 뒤 같은 틱의 나머지 서브시스템을 계속 실행합니다.
-- 26.2 모듈 상태 전환이 실패하면 이전 활성 상태로 되돌리도록 계약과 테스트를
-  추가했습니다.
-
-### 26.2 안전 제어
-
-- 26.2에 `;b2t panic`을 추가해 활성 비수동 모듈을 모두 끄고, B2T가 점유한
-  키·슬롯·전투·이동·Freecam·XRay·Baritone 상태를 즉시 해제합니다.
-- 26.2 로컬 명령 디스패치를 격리해 명령 실패를 로그에 남기고 채팅 처리 경계
-  밖으로 전파하지 않도록 했습니다.
-
-### 공개 배포 기반
-
-- GitHub Actions에서 양 플랫폼 단위 테스트와 전체 빌드를 실행하는 CI를
-  추가하고 공개 배포 버전을 2.2.0으로 올렸습니다.
-- 이벤트 격리, 26.2 틱 격리, panic 및 상태 되돌림 회귀 테스트를 추가했습니다.
-
-## 2.1.0
-
-### 실전 로직과 이동 안정성
-
-- Auto Crystal에 난이도 기반 폭발 피해, 노출도, 방어구·강인함·저항·보호
-  마법부여 감소, 자해 가중치, 페이스플레이스, 짧은 예측과 제한된 후보 점수를
-  추가했습니다.
-- Auto Crystal 설치·파괴에 서버 생성·제거 패킷 확인, 제한된 재시도와
-  지수형 백오프, 실패 냉각 및 세션 초기화를 추가했습니다.
-- Crystal/Anchor/Bed 자동화에 친구 보호, 비치명 자해 한도, 슬롯 복원과
-  독립적인 설치·파괴 지연을 적용했습니다.
-- 이동 모듈 공통 안전 제어기에 컨텍스트 워밍업, 고핑 감속/일시정지,
-  서버 위치 보정 패킷 반복, 지연 급변·수신 정체와 순간이동 감지, 안정화
-  히스테리시스 및 접속 해제 시 상태 해제를 추가했습니다.
-
-### Baritone, 프리셋과 GUI
-
-- 별도로 설치한 공식 Baritone 1.13.1과 연동하는 좌표·웨이포인트 이동,
-  일시정지·재개·중지, 도착·정체·시간 초과·제한 재시도 상태와
-  `Baritone Navigator` 모듈을 추가했습니다.
-  Baritone은 B2T JAR에 포함하거나 자동 다운로드하지 않습니다.
-- 26.2에서는 별도 설치한 호환 provider를 런타임에 확인해
-  `;b2t baritone goto <x> <y> <z>|stop|status`와 Navigator를 연결합니다.
-  공식 Baritone의 26.2 stable 배포는 B2T가 보장하지 않으며, provider가
-  없거나 API가 맞지 않으면 아무 경로도 시작하지 않고 안전하게 비활성화됩니다.
-- `Low Lag Utility`, `Travel Safe`, `Crystal Practice` 프리셋과 변경 미리보기,
-  위험 기능 2단계 확인, 트랜잭션 롤백과 한 단계 실행 취소를 ClickGUI에
-  추가했습니다.
-- 활성 프로필을 클립보드로 내보내고 가져올 수 있으며, 친구·웨이포인트는
-  제외하고 위험 모듈 활성화는 별도 확인하도록 제한했습니다.
-
-### 26.2 포팅과 검증
-
-- Minecraft 26.2의 공통 90개 카탈로그를 90개 실제 구현에 모두 연결했습니다.
-  마지막 23개는 Visual/World의 Player ESP, Tracers, Nametags,
-  Storage/Hole/Block ESP, Trajectories, Freecam, XRay, Chams, New Chunks,
-  Logout Spots, Stash Finder, Utility의 Auto Armor, Replenish, Chest Swap,
-  Auto Mend, Fast Use, Inventory Manager, Auto Craft, Baritone Navigator,
-  HUD의 Tick Rate와 Totem Pop (Local)입니다.
-- 26.2 명령에 모듈 목록·상태·토글, 친구, 웨이포인트, 프로필과
-  `baritone goto|stop|status`를 연결했습니다.
-- 26.2 프로필에 제한형 `*`/`?` 서버 주소 패턴과 접속·재접속 시 가장
-  구체적인 일치 항목의 자동 적용을 추가했습니다.
-- New Chunks는 기준선 이후 현재 클라이언트 세션에서 처음 관측한 청크만
-  표시합니다. 서버가 최근 생성한 청크라는 증거로 취급하지 않습니다.
-- 26.2 전투 자동화에 원자적 액션 중재, 친구 제외, 체력·자폭·친구 피해
-  안전 한도, 서버 월드 상태 확인, 제한된 재시도와 정확한 슬롯 복구를
-  적용했습니다.
-- 방어 건축·차원 폭발·공성은 단계별 서버 반영 확인과 제한된 실패 냉각을,
-  Bow Aim은 탄도·FOV·회전 속도·수동 입력 양보를, Quiver는 유익한 효과와
-  탄약·내구도·효과 적용 확인을 사용합니다.
-- 26.2 GUI에 카테고리, 검색, 즐겨찾기, 위험도, 모듈별 범위·체력·피해·쿨다운
-  설정 편집과 입력 범위 검증을 추가했습니다.
-- 전투 피해·후보 선택, 이동 보정/핑 정책, Baritone 부재 경로, 프리셋 원자성,
-  플랫폼 카탈로그를 검증하는 결정론적 테스트를 추가했습니다.
-- 새 경쟁력 통합 게이트에서 반복 토글 뒤 액션 점유 해제와 전체 플랫폼 검증을
-  함께 수행합니다.
-- 자동 테스트와 별도로 26.2 실제 그래픽 창의 메인 메뉴 부팅 스모크를
-  통과했습니다. 실제 2b2t 고핑·저TPS, 다시간 접속과 장거리
-  Elytra/Baritone 이동을 결합한 soak는 아직 별도 실서버 검증 과제입니다.
-
-### 26.2 GUI, HUD와 키바인딩
-
-- 26.2 모듈의 `keyCode`를 런타임에서 실제로 소비합니다. GLFW 키 상태를 틱마다
-  폴링해 눌리는 순간에만 토글하므로 키를 누르고 있어도 반복 토글되지 않고,
-  화면이 열려 있는 동안에는 입력을 삼켜 채팅·설정 입력이 모듈을 토글하지
-  않습니다. 접속 해제 시 눌린 키 상태를 초기화합니다.
-- ClickGUI 설정 패널에 모듈별 `Keybind` 편집 행을 추가했습니다. 수식 키 단독
-  바인딩은 거부하고, 같은 키를 공유하는 다른 모듈을 상태줄에 표시합니다.
-  범위를 벗어난 값이 설정 파일에 있어도 해제 상태로 정규화합니다.
-- 드래그 가능한 26.2 HUD 편집기(`H`)와 `Info`/`Module list` 패널을
-  추가했습니다. 위치는 화면 비율로 저장하고 매 프레임 화면 안으로 다시
-  제한하므로 해상도나 GUI 스케일이 바뀌어도 잘리지 않으며, 패널이 화면보다
-  크면 좌상단에 고정합니다. `;b2t hud edit|reset`로도 접근합니다.
-- 26.2 내장 프리셋 화면(`K`)에 변경 미리보기, 위험도 기반 2단계 확인,
-  검증 실패 시 전체 롤백, 한 단계 실행 취소(`U`)를 추가했습니다.
-  프로필을 전환하면 실행 취소 기준선을 폐기합니다.
-- 26.2 프로필 관리 화면(`O`)에 활성 표시, 서버 패턴, 저장·사용·삭제를
-  추가했습니다. 삭제는 2단계 확인이며 마지막 프로필은 삭제하지 않습니다.
-  `;b2t profile delete|gui`도 추가했습니다.
-- Target HUD를 크로스헤어가 아니라 KillAura/TriggerBot/AutoCrystal이 실제로
-  선택한 대상에 연결하고 선택 모듈을 함께 표시합니다. 전투 모듈이 아무것도
-  선택하지 않았을 때만 크로스헤어로 대체하며, 접속 해제 시 초기화합니다.
-- XRay/Block ESP 블록 목록의 인식 불가 항목을 GUI에 `Invalid id`와
-  `No such block`으로 구분해 표시하고 실제 적용 개수를 함께 보여줍니다.
-- Freecam 사용 중에는 Block/Hole ESP 스캔이 플레이어가 아니라 카메라 위치를
-  기준으로 동작합니다.
-- Chams의 RenderType 캐시를 리소스 리로드 시에도 정리합니다.
-- 접속 해제 시 이전 서버의 사망 위치 표시를 초기화합니다.
-
-### 26.2 검증
-
-- `FastUseCooldownAccess26`의 reflection을 Mixin accessor로 대체해 26.2
-  production 코드의 reflection을 선택적 Baritone 어댑터 한 곳으로 되돌렸습니다.
-- 패키지 선언과 다른 디렉터리에 있던 `AvatarRendererNametagMixin26`을
-  올바른 위치로 옮겼습니다.
-- 26.2 전용 서버 E2E를 추가했습니다. 실제 TCP 소켓으로 로컬 전용 서버에
-  접속해, 싱글플레이 통합 서버로는 검증할 수 없던 멀티플레이 경로를
-  확인합니다. 서버 주소를 키로 한 프로필 자동 적용, 재접속 시 스냅샷
-  재적용, 실제 수신 패킷 기반 서버 TPS 추정과 접속 해제 시 초기화,
-  전 모듈을 켠 상태의 제한 soak를 포함합니다.
-- 26.2 고핑·저TPS E2E를 추가했습니다. 테스트 전용 지연 프록시
-  (`LatencyProxy26`)를 클라이언트와 서버 사이에 두고 실측 왕복 시간을
-  직접 접속 시와 비교하며, `/tick rate`로 서버를 실제로 느리게 만들어
-  저TPS 감지와 회복을 확인합니다. 특히 **단순히 먼 서버를 느린 서버로
-  오인하지 않는지**를 함께 검증합니다.
-- 전용 서버 기동은 Mojang EULA 동의가 필요하므로 자동으로 기록하지 않습니다.
-  `-Pb2t.minecraftEula=true` 없이 실행하면 해당 스위트는 실패가 아니라
-  건너뜁니다.
-- 26.2용 Fabric client gametest E2E를 추가했습니다. 이 E2E가 XRay Mixin의
-  `tesselateBlock` `@Redirect`가 fabric-renderer-api-v1의 같은 호출 지점과
-  충돌해 월드 렌더링 시 `SectionCompiler` Mixin 적용이 실패하던 문제를
-  실제로 잡아냈습니다. 해당 주입을 MixinExtras `@WrapOperation`으로
-  교체했습니다. 메인 메뉴만 확인하는 부팅 스모크로는 드러나지 않는
-  결함이었습니다.
-
-## 2.0.0
-
-### 기반과 사용자 경험
-
-- 이벤트 버스, 송수신 패킷 이벤트, 공용 `B2TApi`와 로컬 Fabric 애드온
-  진입점을 추가했습니다.
-- 회전, 입력, 핫바 슬롯과 인벤토리 작업의 충돌을 조정하는
-  `ActionCoordinator`를 추가했습니다.
-- 문자열, 문자열 목록, 색상 설정과 모듈 위험도·즐겨찾기를 추가했습니다.
-- 설정 포맷 v2에 프로필, 서버별 프로필 연결, 친구와 차원별 웨이포인트를
-  추가하고 v1 자동 이관을 지원합니다.
-- `;b2t` 로컬 명령어, 검색·즐겨찾기·위험도 표시가 있는 ClickGUI, 드래그
-  가능한 HUD 편집기와 알림 시스템을 추가했습니다.
-- Baritone, ViaFabricPlus와 Sodium의 설치 여부를 감지하는 선택적 통합 기반을
-  추가했습니다. 해당 모드를 번들하거나 다운로드하지 않습니다.
-
-### 모듈
-
-- 전투 영역에 Offhand, Auto Crystal/Mine, Kill Aura, Criticals, Surround,
-  Hole Fill, Self/Auto Trap, Burrow, Anchor/Bed Aura, Bow Aim, Quiver,
-  City Breaker와 Piston Crystal 등을 추가했습니다.
-- 월드 렌더링 영역에 Player/Storage/Block/Hole ESP, Tracers, Nametags,
-  Trajectories, Waypoints, New Chunks, Logout Spots, Freecam, XRay, Chams,
-  Stash Finder와 Portal Coords 등을 추가했습니다.
-- 이동 영역에 Safe Walk, Auto Center, Hole Snap, Step, No Fall, Fast Swim,
-  Jesus, Elytra Swap/Control, Ground Speed, No Slow와 No Rotate 등을
-  추가했습니다.
-- 유틸리티 영역에 Replenish, Auto Respawn/Reconnect/Mend, Anti AFK,
-  Chest Swap, Fast Use, Inventory Manager와 Auto Craft 등을 추가했습니다.
-- HUD에 활성 모듈, TPS/RTT, 대상, 서버/큐, 로컬 토템 사용 추정 표시를
-  추가했습니다.
-- 전투·이동·자동화 모듈은 기본 비활성화하고 친구 제외 및 동작 충돌 방지
-  경로를 적용했습니다.
-
-### 테스트, 보안과 배포
-
-- 기반 서비스, 설정 v1→v2 이관, 프로필, 친구, 웨이포인트와 액션 중재 단위
-  테스트를 확장했습니다.
-- GUI, 명령어·서비스, 설정 복구와 월드 모듈을 다루는 격리형 Fabric Client
-  GameTest 시나리오를 확장했습니다.
-- 프로덕션 코드의 외부 네트워크, 프로세스 실행, 런처 계정과 토큰 API 표식을
-  차단하는 로컬 전용 정책을 유지했습니다.
-- 아카이브 타임스탬프 제거와 파일 순서 고정, CycloneDX 형식의 로컬 런타임
-  의존성 목록, SHA-256 목록과 감사 가능한 `releaseBundle`을 추가했습니다.
-- 반복 성능 불변조건 테스트와 체크섬·SBOM·선택적 반복 빌드를 확인하는
-  `performance-soak.sh`, `verify-release.sh`를 추가했습니다.
-- 배포 파일명을 Minecraft 대상이 드러나는
-  `b2t-client-mc1.21.4-2.0.0.jar`로 변경했습니다.
-- Java 25 기반 Minecraft 26.2 어댑터와 fail-closed 카탈로그 기반을
-  추가했습니다. 2.1.0에서 공통 90개 카탈로그의 플랫폼 구현을 완성했습니다.
-- 두 플랫폼의 재현 JAR, sources, SBOM과 체크섬을 검증하는
-  `multiVersionBuild`·`multiVersionRelease` 작업을 추가했습니다.
-
-## 1.0.0
-
-- 반응형 카테고리·스크롤 ClickGUI와 31개 모듈을 제공했습니다.
-- Auto Totem/Armor/Tool/Weapon, Trigger Bot과 생존·상태 HUD를 추가했습니다.
-- 모듈 생명주기 오류 격리, 종료 시 상태 복구와 설정 손상 복구를 추가했습니다.
-- 단위·정책 테스트, 격리된 Fabric Client GameTest, `e2eTest`와
-  `qualityGate` 작업을 추가했습니다.
-- HUD와 ClickGUI의 모듈 목록 할당, 렌더 빈도 계산, 인벤토리 반복 탐색과
-  키 입력 상태 저장을 최적화했습니다.
-- Minecraft Java 1.21.4 / Java 21로 고정했습니다.
+First public release.
+
+### Version numbering was reset
+
+Tags had climbed to 3.3.1, but nothing was ever published: no releases, no
+stars, no forks. Those numbers recorded development churn rather than anything
+a user received, so calling the first published build 1.0.0 is the honest
+description. The old tags are kept, since CI history and commit messages point
+at them and deleting them buys nothing.
+
+This was only possible while nobody depended on the numbering. After the first
+user it would have been a breaking change rather than a correction.
+
+### What 1.0 promises
+
+- **Minecraft 1.21.4 and 26.2**, with all 90 features working on both.
+- Config format and command names will not break within 1.x. If that becomes
+  unavoidable, there will be an automatic migration and a note here.
+- Only measured numbers go in the docs. Anything not confirmed is labelled a
+  hypothesis rather than being quietly absorbed into a tolerance.
+- No outbound connections, no telemetry, no launcher token access.
+
+### Documentation rewritten for users
+
+The README used to open with a support matrix, a verification table, and a
+discussion of dependency checksums — all true, none of it answering the
+question someone actually arrives with. Install instructions started 94 lines
+in, after roughly sixty lines about test strategy.
+
+The user-facing half is now the README; build and verification detail moved to
+`docs/DEVELOPMENT.md`. Ordering follows what a new user needs: the ban warning
+first, since it is the only irreversible thing here, then install, then first
+launch, then controls and commands.
+
+Things that were buried are now stated plainly: everything dangerous ships
+disabled, `;sealed panic` is the one command worth memorising, and config
+survives corruption. Long reference material is collapsed rather than deleted.
+
+Both documents are in English. Claims were re-checked against the code rather
+than carried across: jar names against built artifacts, keys against the GLFW
+constants, the command prefix against `CommandManager`, config paths against
+`ConfigManager`, and the catalogue count against
+`PlatformCatalogParityIntegrationTest`.
+
+### Supporting more Minecraft versions
+
+The cost of another version was measured rather than estimated: the 1.21.4
+source was compiled against 1.21.8 and the compiler counted.
+
+| | Errors | Files affected |
+| --- | --- | --- |
+| Before | 101 | 27 of 157 |
+| After | 54 | 4 |
+
+Sixty percent of the original errors were a single rename. `Inventory.selected`
+and `setSelectedHotbarSlot` were spelled out at 61 call sites across 17 files,
+so one line of upstream change detonated across the module tree.
+
+Version-sensitive access now goes through four adapters in
+`dev.sealedclient.platform`: the hotbar slot, movement input, the
+sword/pickaxe test, and entity access. The sword test was not a rename but a
+deletion — those classes were folded into components — and asking the item tag
+instead is more correct anyway, so a datapack sword that never extended the
+vanilla class now counts as one.
+
+A source-scanning test stops new call sites from going around the adapters. It
+was checked by deliberately reintroducing a direct reference and watching it
+fail.
+
+What remains for 1.21.8 is 44 render pipeline errors, which is a real port
+rather than renaming, and 9 inside the adapters themselves. The second number
+cannot reach zero — something has to call the real API — and having it be nine
+lines in three files is the entire point.
+
+The render port is deliberately not started: there is no way to verify 1.21.4
+render output in CI, and moving ~894 lines while regressions cannot be caught
+automatically would relocate the debt rather than repay it.
+
+### Bugs found and fixed
+
+**Blast damage through cover.** Two engines in the 26.2 platform each carried
+their own copy of the explosion curve, and both returned zero damage for a
+fully obstructed target. The server deals at least 1. Three live paths read
+those values, so targets behind obsidian were being judged safe. Both now use
+the measured formula, and a test cross-checks them across the full distance and
+exposure grid so they cannot diverge again.
+
+**Overlay alpha inverting.** Extracting colour maths for testing exposed a real
+defect: an alpha scale above 1 wrapped a nearly opaque overlay into a
+transparent one, because only the upper bound was clamped and only after
+multiplying. Both ends are clamped now, and a non-finite scale draws nothing
+rather than painting the whole screen.
+
+**Durability rounding disagreement.** The two platforms computed remaining
+durability differently — one rounded, one truncated. On a diamond chestplate
+that is a different answer for half of all durability values, moving the
+auto-repair threshold by two points. The existing test never caught it because
+it used a maximum of 100, exactly where the two formulas coincide. A test at a
+real chestplate maximum now pins it, verified by restoring the old formula and
+watching it fail.
+
+**ClickGUI going blank.** Collapsing an expanded module shortened the list
+while the scroll offset stayed, pushing every remaining row off the top. The
+search path already handled this; collapsing did not. Both now share one
+clamp.
+
+### Measured ceilings
+
+Rather than claiming combat is fast or accurate, each property has a ceiling
+that cannot be beaten, measured against a real dedicated server.
+
+- **Reaction latency: 1 tick**, 12 of 12 samples. A reaction cannot be sent
+  before the tick that observed its cause.
+- **Crystal placement: matches exhaustive search** across 2000 randomised
+  trials.
+- **Explosion damage: 7 of 10 scenarios exact**, worst case 0.500 low. The
+  error is one-directional — the prediction is never below the damage actually
+  dealt, which is the safe side for self-damage decisions.
+
+The surviving explanation for the residual (server `float` accumulation versus
+our `double`) is recorded as a hypothesis, not a fact.
+
+---
+
+Earlier entries covered pre-release development and were written in Korean.
+They are preserved in the git history under tags `v2.2.0` through `v3.3.1`.

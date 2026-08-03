@@ -1,12 +1,12 @@
-# 개발자 문서
+# Developer documentation
 
-Sealed Client를 직접 빌드하거나, 검증 방법을 확인하거나, 기여하려는 사람을
-위한 문서입니다. 클라이언트를 쓰기만 할 사람은 [README](../README.md)만 보면
-됩니다.
+For building Sealed Client yourself, checking how it is verified, or
+contributing. If you only want to use the client, the
+[README](../README.md) is all you need.
 
-## 빌드와 테스트
+## Building and testing
 
-Gradle toolchain이 1.21.4용 Java 21과 26.2용 Java 25를 사용합니다.
+The Gradle toolchain uses Java 21 for 1.21.4 and Java 25 for 26.2.
 
 ```shell
 java -version
@@ -14,152 +14,162 @@ java -version
 ./gradlew --no-daemon e2eTest
 ```
 
-전체 품질 게이트:
+Full quality gate:
 
 ```shell
 ./gradlew --no-daemon clean qualityGate
 ```
 
-GitHub Actions CI도 `../.github/workflows/ci.yml`에서 양 플랫폼 단위 테스트와
-`build`를 실행합니다. Loom이 운영체제별로 생성하는 매핑 JAR 때문에 공개 CI의
-해당 명령만 Gradle 검증을 `lenient`로 실행하며, 고정된 외부 의존성 메타데이터와
-로컬 릴리스 게이트는 계속 strict 검증을 사용합니다. Client GameTest와 재현성 검사는 공개 CI 범위 밖이므로
-릴리스 전에는 위 로컬 품질 게이트와 `scripts/verify-release.sh --repeat-builds 2`를
-별도로 실행해야 합니다.
+GitHub Actions CI runs unit tests for both platforms plus `build`, defined in
+[`.github/workflows/ci.yml`](../.github/workflows/ci.yml). Because Loom
+generates mapping jars per operating system, only that command runs Gradle
+verification in `lenient` mode; pinned external dependency metadata and the
+local release gate stay strict. Client GameTests and the reproducibility check
+are outside public CI, so before a release you also need the local quality
+gate above and `scripts/verify-release.sh --repeat-builds 2`.
 
-연결이 예고 없이 끊기는 상황의 정리·재접속 검증. 실제 네트워크 경로를
-실행하려면 EULA 동의가 필요하며, 생략하면 스위트가 건너뛰기만 확인합니다.
-GameTest는 공개 CI 범위 밖이므로 이 게이트는 로컬에서만 보증됩니다:
+Cleanup and reconnect behaviour when a connection drops without warning.
+Exercising the real network path needs EULA consent; without the flag the
+suite only verifies that it skips. GameTests are outside public CI, so this
+gate is only guaranteed locally:
 
 ```shell
 ./gradlew :platform-26.2:networkResilienceTest -Psealed.minecraftEula=true
 ```
 
-성능 불변조건 테스트를 기본 3회 반복:
+Performance invariants, repeated 3 times by default:
 
 ```shell
 scripts/performance-soak.sh
 ```
 
-전투·이동·Baritone 부재 경로·프리셋·26.2 카탈로그를 한 번에 확인하는 경쟁력
-통합 게이트:
+Combat, movement, the Baritone-absent path, presets and the 26.2 catalogue in
+one gate:
 
 ```shell
 scripts/competitive-integration-gate.sh
 ```
 
-공식 1.21.4 Baritone API Fabric 모드를 임시로 내려받아 공식 체크섬을
-확인하고 실제 설치 상태의 전체 Client GameTest를 실행:
+Temporarily downloads the official 1.21.4 Baritone API Fabric mod, checks it
+against the official checksum, and runs the full Client GameTest with it
+actually installed:
 
 ```shell
 scripts/baritone-integration-smoke.sh
 ```
 
-이 스크립트만 명시적으로 외부 릴리스 파일을 내려받습니다. Loom이 로컬 모드를
-개발 매핑으로 다시 만들기 때문에 생성된 임시 파일의 의존성 검증은
-`lenient`로 실행하지만, 입력 JAR은 실행 전에 공식 릴리스 체크섬과 대조합니다.
+This is the only script that deliberately downloads an external release file.
+Loom rebuilds the local mod against development mappings, so dependency
+verification for the generated temporary file runs in `lenient` mode, but the
+input jar is compared against the official release checksum before it runs.
 
-검증 수준은 다음처럼 구분합니다.
+Verification levels:
 
-| 수준 | 확인 범위 | 포함하지 않는 범위 |
+| Level | Covers | Does not cover |
 | --- | --- | --- |
-| 공통·26.2 자동 테스트 | 90/90 카탈로그, 설정·상태 머신, 렌더·월드 탐지 결정 로직, 액션 중재, Baritone 부재·비호환 경로, JAR·SBOM·체크섬 | 실제 GPU 렌더링, 실제 외부 서버 지연 |
-| 1.21.4 Client GameTest | 격리된 싱글플레이/통합 서버의 부팅, GUI·HUD, 설정 복구, Freecam/XRay와 저장소·포털 탐지 | 2b2t 접속 |
-| 26.2 Client GameTest (싱글플레이) | 실제 창에서 90/90 카탈로그, ClickGUI·HUD 편집기·프로필·프리셋 화면, 키바인딩 토글, 작은 화면 클리핑 방지 | 멀티플레이 네트워크 경로 |
-| 26.2 Client GameTest (전용 서버) | **실제 TCP 소켓** 접속. 서버 주소 기반 프로필 자동 적용, 재접속 시 스냅샷 재적용, 실제 수신 패킷 기반 TPS 추정, 접속 해제 정리, 전 모듈 활성 상태의 제한 soak | 2b2t 대기열·안티치트·실제 인구 |
-| 26.2 Client GameTest (고핑·저TPS) | 지연 프록시를 통한 실측 왕복 시간 비교, `/tick rate`로 강제한 실제 저TPS 감지와 회복, 지연과 저TPS의 구분 | 변동하는 실제 네트워크, 다시간 지속 |
-| 26.2 그래픽 부팅 스모크 | `:platform-26.2:runClient`로 실제 게임 창, 메인 메뉴와 `P` ClickGUI 부팅 확인 | 청크 렌더 경로 (전용 서버 E2E가 담당) |
+| Common + 26.2 automated tests | 90/90 catalogue, config and state machines, render and world-detection decision logic, action arbitration, Baritone absent/incompatible paths, jar/SBOM/checksum | Real GPU rendering, real external server latency |
+| 1.21.4 Client GameTest | Boot on an isolated singleplayer/integrated server, GUI and HUD, config recovery, Freecam/XRay, storage and portal detection | Connecting to 2b2t |
+| 26.2 Client GameTest (singleplayer) | 90/90 catalogue in a real window, ClickGUI, HUD editor, profile and preset screens, keybind toggles, small-screen clipping | Multiplayer network paths |
+| 26.2 Client GameTest (dedicated server) | **Real TCP sockets.** Server-address profile auto-apply, snapshot reapply on reconnect, TPS estimation from actually received packets, disconnect cleanup, a bounded soak with every module enabled | 2b2t queue, anticheat, real population |
+| 26.2 Client GameTest (high ping / low TPS) | Measured round-trip comparison through a latency proxy, real low-TPS detection and recovery forced with `/tick rate`, telling latency apart from low TPS | Fluctuating real networks, multi-hour duration |
+| 26.2 graphical boot smoke | Real game window via `:platform-26.2:runClient`, main menu and `P` ClickGUI | The chunk render path (covered by the dedicated-server E2E) |
 
-1.21.4 E2E 로그는 `build/run/clientGameTest/logs/latest.log`, 스크린샷은
-`build/run/clientGameTest/screenshots/`에 생성됩니다. 26.2 그래픽 부팅은
-자동 단위 테스트와 별개의 수동 스모크이므로 배포 JAR도 별도 테스트
-인스턴스에서 먼저 확인하십시오.
+1.21.4 E2E logs land in `build/run/clientGameTest/logs/latest.log` and
+screenshots in `build/run/clientGameTest/screenshots/`. The 26.2 graphical
+boot is a manual smoke test separate from the automated suites, so check
+release jars in a separate test instance too.
 
 ```shell
 ./gradlew --no-daemon :platform-26.2:runClient
 ```
 
-메인 메뉴까지의 부팅 스모크는 청크 렌더 경로를 전혀 타지 않습니다.
-`SectionCompiler`는 월드가 청크를 그리기 전까지 로드되지 않으므로, 렌더 관련
-Mixin을 수정했다면 반드시 26.2 Client GameTest를 실행해야 합니다.
+Booting as far as the main menu never touches the chunk render path.
+`SectionCompiler` is not loaded until a world draws chunks, so if you changed
+a render-related mixin you must run the 26.2 Client GameTest.
 
-### 26.2 전용 서버·고핑 E2E
+### 26.2 dedicated-server and high-ping E2E
 
-전용 서버를 띄우는 검증은 Mojang EULA 동의가 필요합니다. 동의는 빌드를
-실행하는 사람의 결정이므로 자동으로 기록하지 않으며, 플래그가 없으면 해당
-스위트는 실패가 아니라 건너뜁니다.
+Anything that starts a dedicated server needs Mojang EULA consent. That is the
+decision of whoever runs the build, so it is never recorded automatically, and
+without the flag those suites skip rather than fail.
 
 ```shell
 ./gradlew --no-daemon -Psealed.minecraftEula=true :platform-26.2:runClientGameTest
 ```
 
-이 스위트는 실제 TCP 소켓으로 로컬 전용 서버에 접속해 다음을 확인합니다.
+This suite connects to a local dedicated server over a real TCP socket and
+checks:
 
-- 서버 주소를 키로 한 프로필 자동 적용과 재접속 시 스냅샷 재적용
-  (싱글플레이 통합 서버는 `singleplayer`를 반환하므로 이 경로를 검증할 수 없습니다)
-- 실제 수신 패킷에서 계산한 서버 TPS 추정과 접속 해제 시 초기화
-- 지연 프록시(`LatencyProxy26`)를 경유했을 때의 실측 왕복 시간 증가
-- `/tick rate`로 강제한 실제 저TPS 감지, 그리고 **지연과 저TPS의 구분**
-  (멀기만 한 서버를 느린 서버로 오인하지 않는지)
+- Profile auto-apply keyed on server address, and snapshot reapply on
+  reconnect (an integrated singleplayer server reports `singleplayer`, so this
+  path cannot be verified there)
+- Server TPS estimated from actually received packets, and reset on disconnect
+- Measured round-trip increase when routed through the latency proxy
+  (`LatencyProxy26`)
+- Real low-TPS detection forced with `/tick rate`, and **telling latency apart
+  from low TPS** — that a merely distant server is not mistaken for a slow one
 
-여전히 재현하지 않는 것: 2b2t의 대기열, 안티치트, 실제 인구, 변동하는
-네트워크 품질, 그리고 다시간 지속 soak. 장거리 Elytra/Baritone 이동도
-자동 검증 대상이 아닙니다. 따라서 테스트 통과를 실서버 장시간 안정성
-보증으로 해석하면 안 됩니다.
+Still not reproduced: the 2b2t queue, anticheat, real population, fluctuating
+network quality, and multi-hour soaks. Long-distance Elytra and Baritone
+travel are not automatically verified either. Passing these tests is therefore
+not a guarantee of long-run stability on a live server.
 
-## 측정된 상한
+## Measured ceilings
 
-전투 성능을 "빠르다"거나 "정확하다"로 주장하는 대신, 물리적·수학적으로 더
-나아질 수 없는 지점을 정하고 거기에 도달했는지를 측정합니다. 아래 수치는
-전용 서버에 실제로 붙어 실제 폭발을 터뜨려 얻은 것입니다.
+Instead of asserting that combat is "fast" or "accurate", each property has a
+ceiling that cannot be beaten for physical or mathematical reasons, and the
+question is how close we get. The numbers below come from connecting to a
+dedicated server and setting off real explosions.
 
-| 항목 | 이론적 상한 | 측정값 | 왜 그 이상이 불가능한가 |
+| Property | Ceiling | Measured | Why nothing can do better |
 | --- | --- | --- | --- |
-| 반응 지연 | 1틱 | 1틱 (12/12 샘플) | 클라이언트는 패킷을 읽은 뒤 틱을 돌리고, 그 틱 끝에 행동을 보냅니다. 원인을 관측한 틱보다 먼저 반응을 보낼 수는 없습니다 |
-| 폭발 데미지 예측 | 오차 0 | 10개 중 7개가 오차 0, 최대 0.500 | 아래 설명 참조 |
-| 크리스탈 선택 | 최적해 | 전수 탐색과 일치 (2000회 무작위 시행) | 후보 집합에서 점수가 가장 높은 것을 고르는 것이 정의상 최선입니다 |
+| Reaction latency | 1 tick | 1 tick (12/12 samples) | The client reads packets, runs a tick, and sends actions at the end of that tick. A reaction cannot be sent before the tick that observed its cause |
+| Explosion damage prediction | 0 error | 7 of 10 exact, worst 0.500 | See below |
+| Crystal placement | Optimal | Agrees with exhaustive search (2000 randomised trials) | Picking the highest-scoring candidate is optimal by definition |
 
-재현:
+Reproduce:
 
 ```shell
 ./gradlew :platform-26.2:combatAccuracyTest -Psealed.minecraftEula=true
 ```
 
-이 게이트는 Client GameTest라 공개 CI 범위 밖이며 로컬에서만 보증됩니다.
-대신 실측으로 검증된 공식과 그 시나리오 표는 단위 테스트로 고정되어 매
-빌드에서 검사됩니다.
+This gate is a Client GameTest, so it is outside public CI and only guaranteed
+locally. The formula it validated, and the scenario table, are pinned as unit
+tests that do run on every build.
 
-**남은 오차 0.500에 대하여.** 10개 시나리오 중 7개는 서버가 적용한 피해와
-소수점까지 일치합니다. 일치하지 않는 3개는 모두 무방비 상태의 근거리 피격이며
-0.500, 0.167, 0.167만큼 낮게 예측합니다.
+**About the remaining 0.500.** Seven of ten scenarios match the damage the
+server applied, to the decimal. The three that do not are all unarmoured
+close-range hits, under-predicting by 0.500, 0.167 and 0.167.
 
-이 잔차가 무엇이 아닌지는 계측으로 확인했습니다. 거리나 시야 판정 때문이
-아닙니다 — 게임 테스트가 서버 자신의 좌표와 블록으로 같은 계산을 돌려도 예측값이
-동일합니다. 낙하 피해나 흡수 하트도 아닙니다. 측정해서 배제했습니다. 실행을
-반복해도 값이 같으므로 타이밍 문제도 아닙니다.
+What the residual is *not* was established by instrumentation. Not distance or
+line-of-sight: the game test runs the same calculation against the server's own
+coordinates and blocks and gets the identical prediction. Not fall damage or
+absorption hearts, both measured and ruled out. Not timing either, since
+repeated runs give identical values.
 
-남은 가설은 서버가 감쇄 계산을 `float`로 누적하는 반면 우리는 `double`로
-계산한다는 것입니다. 이 가설은 오차가 나타나는 위치와 맞아떨어집니다. 방어구
-경로를 타는 경우는 모두 정확하고, 그 경로를 건너뛰는 큰 무방비 피해에서만
-어긋납니다. 다만 이는 아직 가설이며 확정된 사실이 아니라서, 허용 오차 안에
-슬쩍 묻지 않고 이렇게 남겨둡니다.
+The surviving hypothesis is that the server accumulates its reductions in
+`float` while we compute in `double`. It fits where the error appears —
+everything going through the armour path is exact, and only large unarmoured
+hits drift. It is still a hypothesis rather than an established fact, which is
+why it is written here instead of being quietly folded into a tolerance.
 
-오차의 방향은 한쪽입니다. 예측값이 실제 피해보다 낮은 경우는 없습니다. 자기
-피해 판정에서는 과대평가가 안전한 방향입니다.
+The error is one-directional: the prediction is never lower than the damage
+actually dealt. For self-damage decisions, overestimating is the safe side.
 
-**이 수치가 말하지 않는 것.** 다른 클라이언트를 벤치마크한 결과가 아닙니다.
-비교 대상 없이 절대적 상한 대비 우리 위치만을 측정했습니다. 또한 클라이언트는
-서버가 보는 모든 정보를 볼 수 없으므로(상대 방어구의 인챈트 등), 예측 정확도의
-상한은 "오차 0"이 아니라 "클라이언트가 볼 수 있는 정보로 도달 가능한 최소
-오차"입니다.
+**What these numbers do not say.** They are not a benchmark against other
+clients; there is no competitor in the measurement, only the distance from an
+absolute ceiling. And since a client cannot see everything the server sees —
+enchantments on someone else's armour, for one — the real ceiling for
+prediction accuracy is not "zero error" but "the smallest error reachable from
+what a client can observe".
 
-## 배포 묶음과 SHA-256
+## Release bundle and SHA-256
 
 ```shell
 scripts/verify-release.sh
 ```
 
-`build/multiversion-release/`에는 다음 파일이 생성됩니다.
+`build/multiversion-release/` will contain:
 
 - `sealed-client-mc1.21.4-1.0.0.jar`
 - `sealed-client-mc1.21.4-1.0.0-sources.jar`
@@ -167,58 +177,63 @@ scripts/verify-release.sh
 - `sealed-client-mc26.2-1.0.0-sources.jar`
 - `sealed-client-1.0.0.sbom.json`
 - `sealed-client-26.2-1.0.0-bom.json`
-- 통합 `SHA256SUMS`와 플랫폼별 체크섬 목록
+- A combined `SHA256SUMS` plus per-platform checksum lists
 - `SECURITY.md`, `NOTICE`
 
-SHA-256은 파일이 게시 후 바뀌었는지를 확인합니다. 단, JAR과 해시를 같은
-신뢰할 수 없는 곳에서 받으면 둘 다 바뀔 수 있으므로 공식적으로 검토한
-소스나 별도의 신뢰 경로에서 해시를 확인해야 합니다. SBOM은 런타임 의존성
-목록과 그 해시를 기록하는 감사 자료이며, 취약점 검사 결과나 안전 인증서가
-아닙니다.
+SHA-256 tells you whether a file changed after publication. It does not help
+if you take both the jar and the hash from the same untrusted place, since
+both can be replaced together — get the hash from the reviewed source or
+another trusted path. The SBOM is an audit record of runtime dependencies and
+their hashes, not a vulnerability scan and not a safety certificate.
 
-이미 생성된 묶음만 다시 검사하려면
-`scripts/verify-release.sh --skip-build`를 사용합니다.
+To re-check an already generated bundle:
 
-## 재현 빌드 상태
+```shell
+scripts/verify-release.sh --skip-build
+```
 
-JAR 작업은 파일 타임스탬프를 제거하고 파일 순서를 고정합니다. 이는 같은
-입력에서 같은 바이트가 나올 가능성을 높이지만, 프로젝트가 서로 다른
-컴퓨터·JDK에서의 완전한 재현성을 자동 인증하지는 않습니다.
+## Reproducible build status
 
-현재 환경에서 두 번 생성한 전체 릴리스 체크섬을 비교하려면:
+Jar tasks strip file timestamps and pin file ordering. That improves the odds
+of identical bytes from identical inputs, but the project does not claim
+certified reproducibility across different machines and JDKs.
+
+To compare checksums from two full release builds in the current environment:
 
 ```shell
 scripts/verify-release.sh --repeat-builds 2
 ```
 
-스크립트는 각 빌드의 `SHA256SUMS`와 SBOM 구조도 확인합니다. 성공은 이
-환경에서 반복 생성한 배포 파일들의 체크섬이 같다는 뜻입니다. 이것만으로
-소스, 빌드 도구 또는 빌드 머신이 안전하다고 증명되지는 않습니다.
+The script also checks each build's `SHA256SUMS` and SBOM structure. Success
+means repeated builds in *this* environment produced the same checksums. On its
+own that does not prove the source, the build tooling, or the build machine is
+safe.
 
-## 다른 Minecraft 버전 지원 비용
+## What another Minecraft version costs
 
-지원 버전을 늘리는 비용을 추정하지 않고 측정했습니다. 1.21.4 소스를 그대로
-1.21.8에 컴파일해 컴파일러가 센 값입니다.
+Rather than estimating the cost of supporting more versions, it was measured:
+the 1.21.4 source was compiled against 1.21.8 and the compiler counted.
 
-| 시점 | 오류 | 영향 파일 |
+| | Errors | Files affected |
 | --- | --- | --- |
-| 어댑터 도입 전 | 101 | 27 / 157 |
-| 어댑터 도입 후 | 54 | 4 |
+| Before adapters | 101 | 27 of 157 |
+| After adapters | 54 | 4 |
 
-줄어든 47개는 전부 이름이 바뀐 것이었습니다. 핫바 슬롯, 이동 입력, 무기·곡괭이
-판정, 저항 효과, 갑옷 슬롯, 순간이동이 그렇습니다. 이제 이런 접근은
-`dev.sealedclient.platform`의 어댑터 4개(181줄)를 통해서만 이뤄지며, 소스 검사
-테스트가 새 호출부의 우회를 막습니다.
+All 47 that went away were renames — the hotbar slot, movement input, the
+sword/pickaxe test, the resistance effect, armour slots, teleporting. Access
+like that now goes through four adapters in `dev.sealedclient.platform` (181
+lines), and a source-scanning test stops new call sites from going around them.
 
-남은 54개의 성격은 두 가지입니다.
+The remaining 54 are two things:
 
-- **44개 — 렌더 파이프라인.** `RenderSystem`의 상태 메서드가 삭제되고
-  `RenderPipeline`으로 옮겨졌습니다. 이름 변경이 아니라 렌더 상태를 기술하는
-  방식이 바뀐 것이라 실제 이식이 필요합니다. 26.2에서 같은 작업에 894줄이
-  들었습니다. **1.21.4의 렌더 결과를 CI에서 검증할 수단이 없으므로**, 회귀를
-  자동으로 잡지 못하는 상태에서 착수하지 않습니다.
-- **9개 — 어댑터 파일 내부.** 이 숫자는 0이 될 수 없습니다. 결국 누군가는 실제
-  API를 호출해야 하며, 그 지점이 3개 파일 9줄로 모였다는 것이 어댑터의 목적입니다.
+- **44 — the render pipeline.** `RenderSystem`'s state methods were removed and
+  moved into `RenderPipeline`. That is not a rename but a change in how render
+  state is described, so it needs a real port; the equivalent work on 26.2 came
+  to about 894 lines. **There is no way to verify 1.21.4 render output in CI**,
+  so this is not started while regressions cannot be caught automatically.
+- **9 — inside the adapter files.** This number cannot reach zero. Something
+  has to call the real API, and the point of the adapters is that it happens in
+  three files instead of seventeen.
 
-따라서 1.0은 **1.21.4와 26.2 두 버전을 지원한다**고만 약속합니다. 다른 버전은
-"곧 지원"이 아니라 위 표의 숫자만큼 남아 있는 상태입니다.
+So 1.0 promises 1.21.4 and 26.2. Other versions are not "coming soon"; they are
+the number above.

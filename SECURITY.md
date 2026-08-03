@@ -1,68 +1,75 @@
-# Security / 보안
+# Security
 
-## Local-only boundary / 로컬 전용 경계
+## Local-only boundary
 
-Sealed Client의 프로덕션 코드는 다음 동작을 하지 않는 것을 원칙으로 합니다.
+Sealed Client's production code is designed never to:
 
-- 별도 HTTP 연결, 소켓 또는 웹훅 열기
-- 텔레메트리 수집 또는 플레이 정보 전송
-- Minecraft 런처 계정·프로필·인증 토큰 읽기
-- 실행 가능한 코드 다운로드 또는 원격 로딩
-- 외부 프로세스 실행
-- 원격 자동 업데이트
+- Open its own HTTP connection, socket, or webhook
+- Collect telemetry or transmit play information
+- Read Minecraft launcher accounts, profiles, or auth tokens
+- Download or remotely load executable code
+- Launch external processes
+- Update itself remotely
 
-Minecraft는 사용자가 선택한 게임 서버와 정상적으로 통신하며, Sealed Client는
-해당 연결의 패킷 이벤트를 모듈에 제공합니다. “로컬 전용”은 게임 연결까지
-차단한다는 의미가 아니라, 그 연결과 별개인 외부 통신 채널을 Sealed Client가
-만들지 않는다는 의미입니다.
+Minecraft still talks to whatever game server you chose, and Sealed Client
+exposes packet events from that connection to its modules. "Local-only" does
+not mean the game connection is blocked; it means Sealed Client does not create
+a channel of its own separate from that connection.
 
-예상되는 직접 파일 접근은 Fabric이 제공하는 `config/sealedclient/`과
-`config/sealedclient-26.2.json` 설정 경로뿐입니다. 설정 저장은 임시 파일을
-사용하고 파일 시스템이 지원하면 원자적으로 교체합니다. 1.21.4는 마지막으로
-읽을 수 있었던 설정을 백업해 복구하고, 26.2는 손상 파일을 격리한 뒤 안전한
-기본값을 사용합니다.
+The only direct file access expected is the Fabric-provided config paths,
+`config/sealedclient/` and `config/sealedclient-26.2.json`. Config writes use a
+temporary file and swap atomically where the filesystem supports it. 1.21.4
+keeps a backup of the last config that loaded cleanly and restores from it;
+26.2 quarantines a corrupted file and falls back to safe defaults.
 
-1.21.4의 클립보드 프로필 교환은 친구, 웨이포인트와 서버 연결 정보를
-포함하지 않습니다. 가져오기 입력은 256 KiB와 JSON 중첩 32단계로 제한하고,
-등록된 모듈·설정 값만 적용합니다. 실행 코드나 JAR을 읽지 않으며 전투·이동·
-패킷·자동화 모듈 활성화는 별도 확인이 없으면 건너뜁니다.
+Clipboard profile exchange on 1.21.4 does not include friends, waypoints, or
+server connection details. Imports are capped at 256 KiB and 32 levels of JSON
+nesting, and only registered modules and setting values are applied. No
+executable code or jars are read, and enabling combat, movement, packet, or
+automation modules is skipped without a separate confirmation.
 
-로컬 Fabric 모드는 `sealedclient:addon` 진입점을 통해 Sealed Client API를 사용할 수
-있습니다. Sealed Client는 애드온을 다운로드하거나 임의 디렉터리의 JAR을
-스캔하지 않지만, 사용자가 별도로 설치한 모드는 Sealed Client와 같은 게임
-프로세스 권한을 가집니다. 애드온의 안전은 별도로 검토해야 합니다.
-선택적인 Baritone 연동도 사용자가 설치한 공식 모드를 감지할 뿐 다운로드하거나
-번들하지 않습니다. 별도로 설치한 Baritone JAR은 같은 이유로 Sealed Client의 보안 경계
-밖이며, 출처와 체크섬을 별도로 확인해야 합니다.
+Local Fabric mods can use the Sealed Client API through the `sealedclient:addon`
+entry point. Sealed Client does not download addons or scan arbitrary
+directories for jars, but any mod you install yourself runs with the same
+process privileges as Sealed Client, so an addon's safety is your own
+assessment. The optional Baritone integration likewise only detects an official
+mod you installed; it is neither downloaded nor bundled. A separately installed
+Baritone jar is outside this security boundary for the same reason, and you
+should verify its source and checksum independently.
 
-## Threats this design reduces / 줄이려는 위험
+## Threats this design reduces
 
-- 비공식 JAR이 원본과 다른지 SHA-256으로 확인
-- Gradle 다운로드가 검토 당시의 의존성과 다른지 체크섬으로 차단
-- 네트워크·프로세스·토큰 관련 API의 우발적 도입을 소스 정책 테스트로 감지
-- 소스 JAR과 런타임 의존성 목록을 함께 제공하여 검토 가능성 향상
-- 전투·이동·자동화 기능의 기본 비활성화, 위험도 표시와 양 플랫폼의
-  `;sealed panic` (활성 비수동 모듈 비활성화 및 키·슬롯·전투·이동·Freecam·
-  XRay·Sealed Client 소유 Baritone 상태 해제)
+- SHA-256 detects an unofficial jar that differs from what was published
+- Dependency checksums block a Gradle download that differs from what was
+  reviewed
+- A source policy test catches accidental introduction of network, process, or
+  token APIs
+- Source jars ship alongside a runtime dependency list, so review is possible
+- Combat, movement, and automation default to disabled, carry risk labels, and
+  both platforms provide `;sealed panic` (disables active non-passive modules
+  and releases keys, slots, combat, movement, Freecam, XRay, and any
+  Sealed Client-owned Baritone state)
 
-## What this does not prove / 보증하지 않는 것
+## What this does not prove
 
-- 문자열 기반 소스 정책 테스트는 완전한 악성 코드 분석기가 아닙니다.
-- 의존성 체크섬은 다운로드된 파일의 일치 여부를 확인할 뿐, 그 의존성이
-  본질적으로 안전함을 증명하지 않습니다.
-- SHA-256은 신뢰할 수 있는 경로에서 받은 기준 해시와 비교할 때만 의미가
-  있습니다.
-- 플랫폼별 SBOM은 로컬 빌드가 확인한 런타임 의존성 목록이며
-  취약점 스캔, 서명 또는 보안 인증이 아닙니다.
-- 아카이브의 타임스탬프 제거와 순서 고정은 재현성을 돕지만, 서로 다른 환경의
-  비트 단위 재현성을 자동 검증하지 않습니다.
-- 함께 설치한 다른 Fabric 모드, Java 런타임, 런처와 운영체제는 이 저장소의
-  보안 경계 밖입니다.
+- A string-based source policy test is not a complete malware analyser.
+- Dependency checksums confirm that a downloaded file matches; they do not
+  prove that dependency is inherently safe.
+- SHA-256 only means something when compared against a reference hash obtained
+  through a trusted path.
+- The per-platform SBOM is a list of runtime dependencies confirmed by a local
+  build. It is not a vulnerability scan, a signature, or a security
+  certification.
+- Stripping archive timestamps and pinning file order helps reproducibility but
+  does not automatically verify bit-for-bit reproducibility across different
+  environments.
+- Other Fabric mods you install, your Java runtime, your launcher, and your
+  operating system are outside this repository's security boundary.
 
-## Verification / 검증
+## Verification
 
-검토한 저장소 상태에서 실행하십시오. Gradle toolchain은 Java 21과 25를
-각 플랫폼에 맞게 사용합니다.
+Run these against the repository state you reviewed. The Gradle toolchain uses
+Java 21 and 25 as appropriate per platform.
 
 ```shell
 ./gradlew --no-daemon clean :common:clean :platform-26.2:clean multiVersionBuild
@@ -72,52 +79,58 @@ scripts/baritone-integration-smoke.sh
 scripts/verify-release.sh
 ```
 
-`check`에는 프로덕션 코드에서 알려진 네트워크, 프로세스 실행, 런처 계정과
-토큰 API 표식을 찾는 정책 테스트가 포함됩니다. Gradle dependency
-verification은 빌드 플러그인, Minecraft, Fabric, 테스트 도구와 전이 의존성의
-체크섬을 `gradle/verification-metadata.xml`과 대조합니다. 단, Loom이 공식
-매핑 입력에서 운영체제별 바이트가 다른 중간 매핑 JAR을 생성하므로 공개 CI의
-단위 테스트·빌드 명령만 `lenient` 모드를 사용합니다. CI는 검증 실패를 로그에
-남기며 로컬 `qualityGate`와 릴리스 스크립트는 strict 검증을 유지합니다.
+`check` includes a policy test that searches production code for known
+network, process execution, launcher account, and token API markers. Gradle
+dependency verification compares build plugins, Minecraft, Fabric, test tooling,
+and transitive dependencies against `gradle/verification-metadata.xml`. Because
+Loom generates intermediate mapping jars whose bytes differ per operating
+system from the same official mapping inputs, only the public CI unit-test and
+build commands run in `lenient` mode. CI logs verification failures, while the
+local `qualityGate` and the release scripts keep strict verification.
 
-`e2eTest`는 1.21.4 격리형 Fabric 클라이언트와 로컬 통합 서버를 실행합니다.
-2b2t나 다른 외부 Minecraft 서버에는 접속하지 않습니다. 26.2도 Client
-GameTest에서 실제 클라이언트의 panic 및 해제 경로를 검증합니다. 공개 CI는
-단위 테스트와 빌드만 실행하므로 릴리스 전에는 로컬 `qualityGate`를 별도로
-실행해야 합니다.
+`e2eTest` runs an isolated 1.21.4 Fabric client against a local integrated
+server. It never connects to 2b2t or any other external Minecraft server. 26.2
+also verifies the real client's panic and release paths in a Client GameTest.
+Public CI only runs unit tests and the build, so run the local `qualityGate`
+separately before a release.
 
-`baritone-integration-smoke.sh`는 사용자가 명시적으로 실행할 때에만 공식
-GitHub 릴리스에서 Baritone API Fabric JAR과 체크섬을 임시 디렉터리로
-다운로드합니다. 입력 JAR은 실행 전에 공식 체크섬과 대조하고 Sealed Client 배포
-묶음에는 포함하지 않습니다.
+`baritone-integration-smoke.sh` downloads the Baritone API Fabric jar and its
+checksum from the official GitHub release into a temporary directory, and only
+when you explicitly run it. The input jar is compared against the official
+checksum before it runs and is never included in the Sealed Client release
+bundle.
 
-두 로컬 빌드의 릴리스 체크섬도 비교할 수 있습니다.
+You can also compare release checksums across two local builds:
 
 ```shell
 scripts/verify-release.sh --repeat-builds 2
 ```
 
-검증 스크립트는 SHA-256 목록, SBOM 기본 구조와 반복 빌드 간 체크섬 일치를
-확인합니다. 이 비교는 해당 환경에서 두 결과가 같음을 확인할 뿐, 독립적인
-재현 빌드 인프라나 제3자 보증을 대신하지 않습니다.
+The verification script checks the SHA-256 list, basic SBOM structure, and
+checksum agreement between repeated builds. That comparison only establishes
+that two results match in that environment; it is not a substitute for
+independent reproducible-build infrastructure or third-party attestation.
 
-## Safe installation / 안전한 설치
+## Safe installation
 
-- 검토한 소스에서 직접 빌드하거나, 신뢰하는 배포 경로의 JAR만 사용하십시오.
-- Discord 첨부 파일, 비공식 미러와 제3자 런처의 재배포 JAR은 피하십시오.
-- JAR과 `SHA256SUMS`를 가능하면 서로 독립적인 신뢰 경로로 확인하십시오.
-- 소스에 없는 난독화 JAR이나 추가 설치 프로그램을 요구하는 배포본을
-  실행하지 마십시오.
-- 런처 토큰, 세션 값, 계정 파일 또는 전체 로그를 버그 보고에 첨부하지
-  마십시오.
+- Build from source you reviewed, or use jars from a distribution path you
+  trust.
+- Avoid Discord attachments, unofficial mirrors, and jars redistributed by
+  third-party launchers.
+- Verify the jar and `SHA256SUMS` through independent trust paths where
+  possible.
+- Do not run a distribution that contains obfuscated jars absent from the
+  source, or that requires an additional installer.
+- Do not attach launcher tokens, session values, account files, or full logs to
+  a bug report.
 
-## Reporting / 보고
+## Reporting
 
-보안 문제를 발견하면 사용한 Sealed Client 버전, Minecraft/Fabric 버전, 최소
-재현 절차와 영향 범위를 프로젝트 유지관리자에게 전달하십시오. 실제 계정
-토큰, 서버 주소, 개인 경로와 민감한 로그는 삭제하십시오. 악용 가능한 상세
-내용이나 비밀값은 공개 게시물에 올리지 마십시오.
+If you find a security problem, send the maintainers the Sealed Client version
+you used, your Minecraft and Fabric versions, a minimal reproduction, and the
+scope of impact. Strip real account tokens, server addresses, personal paths,
+and sensitive logs. Do not post exploitable detail or secrets publicly.
 
-현재 보안 검토 대상은 이 저장소에서 생성한 Sealed Client 3.0.x의 Minecraft
-1.21.4와 26.2 JAR입니다. 제3자가 변환하거나 다시 패키징한 비공식 JAR은 지원
-대상이 아닙니다.
+The current security review scope is the Minecraft 1.21.4 and 26.2 jars built
+from this repository at Sealed Client 1.0.x. Unofficial jars converted or
+repackaged by third parties are not covered.
